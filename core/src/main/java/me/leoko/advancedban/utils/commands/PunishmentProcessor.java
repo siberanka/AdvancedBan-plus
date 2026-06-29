@@ -97,6 +97,10 @@ public class PunishmentProcessor implements Consumer<Command.CommandInput> {
             return new TimeCalculation(layout, actualTime);
         }
         long toAdd = TimeManager.toMilliSec(time);
+        if (toAdd <= 0 || Long.MAX_VALUE - TimeManager.getTime() < toAdd) {
+            MessageManager.sendMessage(input.getSender(), type.getName() + ".MaxDuration", true, "MAX", "invalid");
+            return null;
+        }
         if (!Universal.get().hasPerms(input.getSender(), "ab." + type.getName() + ".dur.max")) {
             long max = -1;
             for (int i = 10; i >= 1; i--) {

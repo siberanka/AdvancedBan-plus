@@ -6,6 +6,7 @@ import me.leoko.advancedban.manager.DatabaseManager;
 import me.leoko.advancedban.manager.MessageManager;
 import me.leoko.advancedban.manager.PunishmentManager;
 import me.leoko.advancedban.manager.TimeManager;
+import me.leoko.advancedban.utils.litebans.LiteBansCompatibility;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -117,6 +118,7 @@ public class Punishment {
         PunishmentManager.get().getLoadedHistory().add(this);
 
         mi.callPunishmentEvent(this);
+        LiteBansCompatibility.entryAdded(this);
 
         if (getType().getBasic() == PunishmentType.WARNING) {
             String cmd = null;
@@ -126,7 +128,10 @@ public class Punishment {
                 }
             }
             if (cmd != null) {
-                final String finalCmd = cmd.replaceAll("%PLAYER%", getName()).replaceAll("%COUNT%", cWarnings + "").replaceAll("%REASON%", getReason());
+                final String finalCmd = cmd
+                        .replace("%PLAYER%", Security.sanitizeCommandPlaceholder(getName()))
+                        .replace("%COUNT%", cWarnings + "")
+                        .replace("%REASON%", Security.sanitizeCommandPlaceholder(getReason()));
                 mi.runSync(() -> {
                     mi.executeCommand(finalCmd);
                     Universal.get().log("Executing command: " + finalCmd);
@@ -157,6 +162,7 @@ public class Punishment {
                 "COUNT", cWarnings + "");
 
         mi.notify("ab.notify." + getType().getName(), notification);
+        notification.forEach(message -> LiteBansCompatibility.broadcastSent(message, getType().getName()));
     }
 
     public void delete() {
@@ -191,6 +197,7 @@ public class Punishment {
 
         Universal.get().debug("Deleted punishment " + getId() + " from " + getName() + " punishment reason: " + getReason());
         mi.callRevokePunishmentEvent(this, massClear);
+        LiteBansCompatibility.entryRemoved(this);
     }
 
     public List<String> getLayout() {

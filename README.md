@@ -1,47 +1,64 @@
-# AdvancedBan
+# AdvancedBan Plus
 
+Modernized AdvancedBan build for Bukkit/Spigot/Paper, BungeeCord and Velocity networks.
 
-Bukkit- & BungeeCord-Plugin at once <br>
-Check out our [Spigot-Page](https://www.spigotmc.org/resources/advancedban.8695/) for more  information!
+Version: `2026.06.29.1`  
+Authors: Leoko, siberanka  
+License: GPL-3.0
 
-![Minecraft Version 1.7-1.13](https://img.shields.io/badge/supports%20minecraft%20versions-1.7--1.16-brightgreen.svg)
-![license GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-lightgrey.svg)
-[![CircleCI](https://circleci.com/gh/DevLeoko/AdvancedBan.svg?style=svg)](https://circleci.com/gh/DevLeoko/AdvancedBan)
+## Features
 
-_Coded by Leoko_ 
+AdvancedBan Plus provides bans, tempbans, IP bans, mutes, tempmutes, warnings, notes, kicks, history, configurable layouts, MySQL/HSQLDB storage and multi-language message files.
 
-## Description
-AdvancedBan is an All-In-One Punishment-System with warns, tempwarns, mutes, tempmutes, bans, tempbans, ipbans and kicks.
-There is also a PlayerHistory so you can see the players past punishments and 
-the plugin has configurable Time & Message-Layouts which automatically calculate and increase the Punishment-Time for certain reasons.
-AdvancedBan provides also a full Message-File so you can change and translate all messages & a detailed config-file with a lot of useful settings.
-This is a BungeeCord & Bukkit/Spigot-Plugin in one and it supports MySQL and Local-File-Storage.
+This fork adds:
 
-## API
-To use the API you need to add AdvancedBan to your project and declare it as a dependency in the plugin.yml.
+- Velocity proxy support.
+- Safer command handling with length limits and per-sender moderation command rate limits.
+- HTTP timeout protection for update, UUID and geo lookups.
+- Safer shutdown/reload paths for database and API bridge state.
+- Thread-safe IP cache and stronger null handling around database reads.
+- LiteBans API compatibility classes behind `litebans-api-support: false`.
+- Modern bStats API usage for Bukkit/Bungee builds.
+- Common voice chat command aliases in `MuteCommands`.
 
-Add AdvancedBan to you project by adding the AdvancedBan.jar to your build-path or as a:
-#### Maven dependency in your pom.xml
+## Platforms
 
-Example Usage from Jitpack:
-```xml
-<repositories>
-  <repository>
-    <id>jitpack.io</id>
-    <url>https://jitpack.io</url>
-  </repository>
-</repositories>
-...
-<dependency>
-  <groupId>com.github.DevLeoko</groupId>
-  <artifactId>AdvancedBan</artifactId>
-  <version>v2.3.0</version>
-</dependency>
+- Bukkit/Spigot/Paper: built against modern Spigot API while keeping the existing Bukkit adapter.
+- BungeeCord: existing adapter retained and hardened.
+- Velocity: new `AdvancedBan-Velocity` module with command, login, chat, command mute and event support.
+
+## Configuration
+
+New default options in `config.yml`:
+
+```yaml
+litebans-api-support: false
+
+Security:
+  MaxReasonLength: 255
+  MaxArgumentLength: 256
+  MaxTotalCommandLength: 2048
+  HttpConnectTimeoutMillis: 3000
+  HttpReadTimeoutMillis: 3000
+  CommandRateLimit:
+    Enabled: true
+    WindowMillis: 1000
+    MaxCommands: 6
+
+Database:
+  MaximumPoolSize: 10
+  MinimumIdle: 1
+  ConnectionTimeoutMillis: 5000
+  ValidationTimeoutMillis: 3000
+  LeakDetectionThresholdMillis: 0
 ```
-Note: Jitpack also supports dependencies for gradle!
 
-[AdvancedBan on Jitpack](https://jitpack.io/#DevLeoko/AdvancedBan)
+`litebans-api-support` exposes compatible `litebans.api.Database`, `Events`, `Entry`, `PlayerProvider` and `RandomID` classes for plugins that query LiteBans-style ban/mute/warn state. It is disabled by default to avoid surprising behavior on networks that also run LiteBans.
 
+## Build
 
-You can use this API for both Spigot and Bungeecord plugins.
-Check out the [Java Docs](https://devleoko.github.io/AdvancedBan/) to get started.
+```bash
+mvn clean package
+```
+
+If Maven cannot resolve dependencies because of a local Java trust-store problem, fix the JDK/Maven CA certificates first. In this workspace, Maven Central failed with `PKIX path building failed`; core, Bukkit and Velocity sources were additionally checked with direct `javac` compilation against locally cached jars.

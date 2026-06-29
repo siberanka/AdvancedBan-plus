@@ -10,8 +10,10 @@ import me.leoko.advancedban.manager.PunishmentManager;
 import me.leoko.advancedban.manager.UUIDManager;
 import me.leoko.advancedban.utils.Permissionable;
 import me.leoko.advancedban.utils.Punishment;
+import me.leoko.advancedban.utils.Security;
 import me.leoko.advancedban.utils.tabcompletion.TabCompleter;
 import org.bstats.bukkit.Metrics;
+import org.bstats.charts.SimplePie;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.OfflinePlayer;
@@ -89,6 +91,9 @@ public class BukkitMethods implements MethodInterface {
     public String getFromUrlJson(String url, String key) {
         try {
             HttpURLConnection request = (HttpURLConnection) new URL(url).openConnection();
+            request.setConnectTimeout(Security.getInt("Security.HttpConnectTimeoutMillis", 3000));
+            request.setReadTimeout(Security.getInt("Security.HttpReadTimeoutMillis", 3000));
+            request.setUseCaches(false);
             request.connect();
 
             JSONParser jp = new JSONParser();
@@ -132,8 +137,8 @@ public class BukkitMethods implements MethodInterface {
 
     @Override
     public void setupMetrics() {
-        Metrics metrics = new Metrics(getPlugin());
-        metrics.addCustomChart(new Metrics.SimplePie("MySQL", () -> DatabaseManager.get().isUseMySQL() ? "yes" : "no"));
+        Metrics metrics = new Metrics(getPlugin(), 0);
+        metrics.addCustomChart(new SimplePie("MySQL", () -> DatabaseManager.get().isUseMySQL() ? "yes" : "no"));
     }
 
     @Override
@@ -279,7 +284,7 @@ public class BukkitMethods implements MethodInterface {
     @Override
     public boolean callCMD(Object player, String cmd) {
         Punishment pnt;
-        if (Universal.get().isMuteCommand(cmd.substring(1)) && (pnt = PunishmentManager.get().getMute(UUIDManager.get().getUUID(getName(player)))) != null) {
+        if (cmd != null && cmd.length() > 1 && Universal.get().isMuteCommand(cmd.substring(1)) && (pnt = PunishmentManager.get().getMute(UUIDManager.get().getUUID(getName(player)))) != null) {
             pnt.getLayout().forEach(str -> sendMessage(player, str));
             return true;
         }

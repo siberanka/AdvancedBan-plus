@@ -25,10 +25,16 @@ public class TimeManager {
      * @return the amount of milliseconds equivalent to the given string
      */
     public static long toMilliSec(String s) {
+        if (s == null || !s.matches("[1-9][0-9]*(s|m|h|d|w|mo)")) {
+            return -1;
+        }
         // This is not my regex :P | From: http://stackoverflow.com/a/8270824
         String[] sl = s.toLowerCase().split("(?<=\\D)(?=\\d)|(?<=\\d)(?=\\D)");
 
         long i = Long.parseLong(sl[0]);
+        if (i > 100_000L) {
+            return -1;
+        }
         switch (sl[1]) {
             case "s":
                 return i * 1000;

@@ -2,6 +2,8 @@ General:
   Prefix: "&c&lAdvancedBan &8&l»"
   NoPerms: "&cYou don't have perms for that!"
   LayoutNotFound: "&cThere is no layout called %NAME%"
+  InvalidArguments: "&cInvalid or unsafe command arguments."
+  RateLimited: "&cPlease slow down before using another moderation command."
   # This will be the replacement for the %DURATION% variable
   TimeLayoutD: "%D%day(s) %H%h %M%min and %S%sec"
   TimeLayoutH: "%H%hour(s) %M%min and %S%sec"

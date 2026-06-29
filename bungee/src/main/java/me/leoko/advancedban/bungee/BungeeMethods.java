@@ -17,6 +17,7 @@ import me.leoko.advancedban.manager.PunishmentManager;
 import me.leoko.advancedban.manager.UUIDManager;
 import me.leoko.advancedban.utils.Permissionable;
 import me.leoko.advancedban.utils.Punishment;
+import me.leoko.advancedban.utils.Security;
 import me.leoko.advancedban.utils.tabcompletion.TabCompleter;
 import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.CommandSender;
@@ -28,6 +29,7 @@ import net.md_5.bungee.config.Configuration;
 import net.md_5.bungee.config.ConfigurationProvider;
 import net.md_5.bungee.config.YamlConfiguration;
 import org.bstats.bungeecord.Metrics;
+import org.bstats.charts.SimplePie;
 
 import java.io.File;
 import java.io.IOException;
@@ -108,6 +110,9 @@ public class BungeeMethods implements MethodInterface {
     public String getFromUrlJson(String url, String key) {
         try {
             HttpURLConnection request = (HttpURLConnection) new URL(url).openConnection();
+            request.setConnectTimeout(Security.getInt("Security.HttpConnectTimeoutMillis", 3000));
+            request.setReadTimeout(Security.getInt("Security.HttpReadTimeoutMillis", 3000));
+            request.setUseCaches(false);
             request.connect();
 
             JsonParser jp = new JsonParser();
@@ -153,8 +158,8 @@ public class BungeeMethods implements MethodInterface {
 
     @Override
     public void setupMetrics() {
-        Metrics metrics = new Metrics(getPlugin());
-        metrics.addCustomChart(new Metrics.SimplePie("MySQL", () -> DatabaseManager.get().isUseMySQL() ? "yes" : "no"));
+        Metrics metrics = new Metrics(getPlugin(), 0);
+        metrics.addCustomChart(new SimplePie("MySQL", () -> DatabaseManager.get().isUseMySQL() ? "yes" : "no"));
     }
 
     @Override
@@ -230,7 +235,7 @@ public class BungeeMethods implements MethodInterface {
             BungeeMain.getCloudSupport().kick(getPlayer(player).getUniqueId(), reason);
         }else if (Universal.isRedis()) {
             RedisBungee.getApi().sendChannelMessage("advancedban:main", "kick " + player + " " + reason);
-        } else {
+        } else if (getPlayer(player) != null) {
             getPlayer(player).disconnect(TextComponent.fromLegacyText(reason));
         }
     }
@@ -310,7 +315,7 @@ public class BungeeMethods implements MethodInterface {
     @Override
     public boolean callCMD(Object player, String cmd) {
         Punishment pnt;
-        if (Universal.get().isMuteCommand(cmd.substring(1))
+        if (cmd != null && cmd.length() > 1 && Universal.get().isMuteCommand(cmd.substring(1))
                 && (pnt = PunishmentManager.get().getMute(UUIDManager.get().getUUID(getName(player)))) != null) {
             for (String str : pnt.getLayout()) {
                 sendMessage(player, str);

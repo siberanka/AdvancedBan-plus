@@ -61,6 +61,11 @@ MuteCommands:
 - 'eamsg'
 - 'ehelpop'
 - 'p msg'
+- 'voicechat'
+- 'voicechat:voicechat'
+- 'vc'
+- 'voice'
+- 'simplevoicechat'
 
 # These players will not be able to get punished in any way
 # this also works if the player is offline
@@ -136,3 +141,27 @@ Disable Prefix: false
 # Off by default, so AdvancedBan can override /ban from other plugins
 # This is a Bukkit-specific option. It has no meaning on BungeeCord
 Friendly Register Commands: false
+
+# Exposes a small compatibility layer for plugins compiled against the LiteBans API.
+# Disabled by default to avoid surprising class/API behavior on networks that also run LiteBans.
+litebans-api-support: false
+
+# Defensive limits for malicious clients, automation, very large payloads and slow external APIs.
+Security:
+  MaxReasonLength: 255
+  MaxArgumentLength: 256
+  MaxTotalCommandLength: 2048
+  HttpConnectTimeoutMillis: 3000
+  HttpReadTimeoutMillis: 3000
+  CommandRateLimit:
+    Enabled: true
+    WindowMillis: 1000
+    MaxCommands: 6
+
+# HikariCP settings. Keep these conservative unless your database is dedicated to punishments.
+Database:
+  MaximumPoolSize: 10
+  MinimumIdle: 1
+  ConnectionTimeoutMillis: 5000
+  ValidationTimeoutMillis: 3000
+  LeakDetectionThresholdMillis: 0

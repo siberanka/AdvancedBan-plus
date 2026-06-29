@@ -5,22 +5,25 @@ import me.leoko.advancedban.manager.*;
 import me.leoko.advancedban.utils.Command;
 import me.leoko.advancedban.utils.InterimData;
 import me.leoko.advancedban.utils.Punishment;
+import me.leoko.advancedban.utils.Security;
+import me.leoko.advancedban.utils.litebans.LiteBansCompatibility;
 import org.apache.commons.io.FileUtils;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 /**
@@ -34,7 +37,7 @@ public class Universal {
         Universal.redis = redis;
     }
 
-    private final Map<String, String> ips = new HashMap<>();
+    private final Map<String, String> ips = new ConcurrentHashMap<>();
     private MethodInterface mi;
     private LogManager logManager;
 
@@ -77,6 +80,7 @@ public class Universal {
 
         mi.setupMetrics();
         PunishmentManager.get().setup();
+        LiteBansCompatibility.setup();
 
         for (Command command : Command.values()) {
             for (String commandName : command.getNames()) {
@@ -116,6 +120,7 @@ public class Universal {
      * Shutdown.
      */
     public void shutdown() {
+        LiteBansCompatibility.shutdown();
         DatabaseManager.get().shutdown();
 
         if (mi.getBoolean(mi.getConfig(), "DetailedDisableMessage", true)) {
@@ -175,11 +180,14 @@ public class Universal {
     public String getFromURL(String surl) {
         String response = null;
         try {
-            URL url = new URL(surl);
-            Scanner s = new Scanner(url.openStream());
-            if (s.hasNext()) {
-                response = s.next();
-                s.close();
+            HttpURLConnection connection = (HttpURLConnection) new URL(surl).openConnection();
+            connection.setConnectTimeout(Security.getInt("Security.HttpConnectTimeoutMillis", 3000));
+            connection.setReadTimeout(Security.getInt("Security.HttpReadTimeoutMillis", 3000));
+            connection.setUseCaches(false);
+            try (Scanner s = new Scanner(connection.getInputStream(), "UTF-8")) {
+                if (s.hasNext()) {
+                    response = Security.limit(s.next(), 64);
+                }
             }
         } catch (IOException exc) {
             debug("!! Failed to connect to URL: " + surl);
@@ -205,7 +213,13 @@ public class Universal {
      * @return true if the command matched any of the mute commands.
      */
     boolean isMuteCommand(String cmd, List<String> muteCommands) {
+        if (cmd == null || cmd.length() > Security.DEFAULT_MAX_TOTAL_COMMAND_LENGTH) {
+            return false;
+        }
         String[] words = cmd.split(" ");
+        if (words.length == 0 || words[0].isEmpty()) {
+            return false;
+        }
         // Handle commands with colons
         if (words[0].indexOf(':') != -1) {
             words[0] = words[0].split(":", 2)[1];
@@ -350,8 +364,9 @@ public class Universal {
      * @param msg the msg
      */
     public void log(String msg) {
-        mi.log("§8[§cAdvancedBan§8] §7" + msg);
-        debugToFile(msg);
+        String cleanMessage = Security.sanitizeForLog(msg);
+        mi.log("§8[§cAdvancedBan§8] §7" + cleanMessage);
+        debugToFile(cleanMessage);
     }
 
     /**
@@ -360,10 +375,11 @@ public class Universal {
      * @param msg the msg
      */
     public void debug(Object msg) {
+        String cleanMessage = Security.sanitizeForLog(String.valueOf(msg));
         if (mi.getBoolean(mi.getConfig(), "Debug", false)) {
-            mi.log("§8[§cAdvancedBan§8] §cDebug: §7" + msg.toString());
+            mi.log("§8[§cAdvancedBan§8] §cDebug: §7" + cleanMessage);
         }
-        debugToFile(msg);
+        debugToFile(cleanMessage);
     }
 
     public void debugException(Exception exc) {
@@ -389,6 +405,11 @@ public class Universal {
 
     private void debugToFile(Object msg) {
         File debugFile = new File(mi.getDataFolder(), "logs/latest.log");
+        File parent = debugFile.getParentFile();
+        if (parent != null && !parent.exists()) {
+            //noinspection ResultOfMethodCallIgnored
+            parent.mkdirs();
+        }
         if (!debugFile.exists()) {
             try {
                 debugFile.createNewFile();
@@ -400,7 +421,7 @@ public class Universal {
             logManager.checkLastLog(false);
         }
         try {
-            FileUtils.writeStringToFile(debugFile, "[" + new SimpleDateFormat("HH:mm:ss").format(System.currentTimeMillis()) + "] " + mi.clearFormatting(msg.toString()) + "\n", "UTF8", true);
+            FileUtils.writeStringToFile(debugFile, "[" + new SimpleDateFormat("HH:mm:ss").format(System.currentTimeMillis()) + "] " + mi.clearFormatting(Security.sanitizeForLog(String.valueOf(msg))) + "\n", "UTF8", true);
         } catch (IOException ex) {
             System.out.print("An error has occurred writing to 'latest.log' file.");
             System.out.print(ex.getMessage());

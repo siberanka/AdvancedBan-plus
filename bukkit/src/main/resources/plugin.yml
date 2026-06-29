@@ -1,7 +1,7 @@
 name: AdvancedBan
 version: ${project.version}
 main: ${project.groupId}.bukkit.BukkitMain
-author: Leoko
+authors: [Leoko, siberanka]
 softdepend: [Vault]
 api-version: 1.13
 

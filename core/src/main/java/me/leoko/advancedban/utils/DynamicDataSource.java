@@ -5,6 +5,8 @@ import com.zaxxer.hikari.HikariDataSource;
 import me.leoko.advancedban.MethodInterface;
 import me.leoko.advancedban.Universal;
 
+import java.io.File;
+
 public class DynamicDataSource {
     private HikariConfig config = new HikariConfig();
 
@@ -18,7 +20,11 @@ public class DynamicDataSource {
             String properties = mi.getString(mi.getMySQLFile(), "MySQL.Properties", "verifyServerCertificate=false&useSSL=false&useUnicode=true&characterEncoding=utf8");
             int port = mi.getInteger(mi.getMySQLFile(), "MySQL.Port", 3306);
 
-            Class.forName("com.mysql.jdbc.Driver");
+            try {
+                Class.forName("com.mysql.cj.jdbc.Driver");
+            } catch (ClassNotFoundException ignored) {
+                Class.forName("com.mysql.jdbc.Driver");
+            }
             config.setJdbcUrl("jdbc:mysql://" + ip + ":" + port + "/" + dbName + "?"+properties);
             config.setUsername(usrName);
             config.setPassword(password);
@@ -26,11 +32,21 @@ public class DynamicDataSource {
             // No need to worry about relocation because the maven-shade-plugin also changes strings
             String driverClassName = "org.hsqldb.jdbc.JDBCDriver";
             Class.forName(driverClassName);
+            File dataFolder = mi.getDataFolder();
+            if (!dataFolder.exists()) {
+                //noinspection ResultOfMethodCallIgnored
+                dataFolder.mkdirs();
+            }
             config.setDriverClassName(driverClassName);
             config.setJdbcUrl("jdbc:hsqldb:file:" + mi.getDataFolder().getPath() + "/data/storage;hsqldb.lock_file=false");
             config.setUsername("SA");
             config.setPassword("");
         }
+        config.setMaximumPoolSize(Security.getInt("Database.MaximumPoolSize", 10));
+        config.setMinimumIdle(Security.getInt("Database.MinimumIdle", 1));
+        config.setConnectionTimeout(Security.getInt("Database.ConnectionTimeoutMillis", 5000));
+        config.setValidationTimeout(Security.getInt("Database.ValidationTimeoutMillis", 3000));
+        config.setLeakDetectionThreshold(Security.getInt("Database.LeakDetectionThresholdMillis", 0));
     }
 
     public HikariDataSource generateDataSource(){

@@ -5,6 +5,7 @@ import me.leoko.advancedban.Universal;
 import me.leoko.advancedban.manager.MessageManager;
 import me.leoko.advancedban.manager.PunishmentManager;
 import me.leoko.advancedban.manager.UUIDManager;
+import me.leoko.advancedban.utils.litebans.LiteBansCompatibility;
 
 public class CommandUtils {
     public static Punishment getPunishment(String target, PunishmentType type) {
@@ -15,8 +16,16 @@ public class CommandUtils {
 
     // Removes name argument and returns uuid (null if failed)
     public static String processName(Command.CommandInput input) {
-        String name = input.getPrimary();
+        String name = LiteBansCompatibility.providePlayerTarget(input.getPrimary());
         input.next();
+        if (Security.isValidUuid(name)) {
+            return Security.normalizeUuid(name);
+        }
+        if (!Security.isValidPlayerName(name)) {
+            MessageManager.sendMessage(input.getSender(), "General.InvalidArguments",
+                    true, "NAME", String.valueOf(name));
+            return null;
+        }
         String uuid = UUIDManager.get().getUUID(name.toLowerCase());
 
         if (uuid == null)
@@ -28,10 +37,15 @@ public class CommandUtils {
 
     // Removes name/ip argument and returns ip (null if failed)
     public static String processIP(Command.CommandInput input) {
-        String name = input.getPrimaryData();
+        String name = LiteBansCompatibility.providePlayerTarget(input.getPrimaryData());
         input.next();
-        if (name.matches("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$")) {
+        if (Security.isValidIpV4(name)) {
             return name;
+        }
+        if (!Security.isValidPlayerName(name)) {
+            MessageManager.sendMessage(input.getSender(), "General.InvalidArguments",
+                    true, "NAME", String.valueOf(name));
+            return null;
         }
 		String ip = Universal.get().getIps().get(name);
 
@@ -45,11 +59,11 @@ public class CommandUtils {
     // Builds reason from remaining arguments (null if failed)
     public static String processReason(Command.CommandInput input) {
         MethodInterface mi = Universal.get().getMethods();
-        String reason = String.join(" ", input.getArgs());
+        String reason = Security.sanitizeReason(String.join(" ", input.getArgs()));
 
-        if (reason.matches("[~@].+") && !mi.contains(mi.getLayouts(), "Message." + input.getPrimary().substring(1))) {
+        if (reason.matches("[~@].+") && !mi.contains(mi.getLayouts(), "Message." + reason.split(" ")[0].substring(1))) {
             MessageManager.sendMessage(input.getSender(), "General.LayoutNotFound",
-                    true, "NAME", input.getPrimary().substring(1));
+                    true, "NAME", reason.split(" ")[0].substring(1));
             return null;
         }
 

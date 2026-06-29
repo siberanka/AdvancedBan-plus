@@ -8,6 +8,9 @@ import me.leoko.advancedban.utils.SQLQuery;
 import javax.sql.rowset.CachedRowSet;
 import javax.sql.rowset.RowSetFactory;
 import javax.sql.rowset.RowSetProvider;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Proxy;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -63,6 +66,9 @@ public class DatabaseManager {
      * Shuts down the HSQLDB if used.
      */
     public void shutdown() {
+        if (dataSource == null) {
+            return;
+        }
         if (!useMySQL) {
             try(Connection connection = dataSource.getConnection(); final PreparedStatement statement = connection.prepareStatement("SHUTDOWN")){
                 statement.execute();
@@ -72,7 +78,9 @@ public class DatabaseManager {
             }
         }
 
-        dataSource.close();
+        if (!dataSource.isClosed()) {
+            dataSource.close();
+        }
     }
     
     private CachedRowSet createCachedRowSet() throws SQLException {
@@ -108,6 +116,10 @@ public class DatabaseManager {
     }
 
     private synchronized ResultSet executeStatement(String sql, boolean result, Object... parameters) {
+        if (dataSource == null || dataSource.isClosed()) {
+            Universal.get().log("Database is not available; statement skipped.");
+            return null;
+        }
     	try (Connection connection = dataSource.getConnection(); PreparedStatement statement = connection.prepareStatement(sql)) {
 
     		for (int i = 0; i < parameters.length; i++) {
@@ -140,13 +152,51 @@ public class DatabaseManager {
         return null;
     }
 
+    public PreparedStatement prepareExternalStatement(String sql) throws SQLException {
+        if (dataSource == null || dataSource.isClosed()) {
+            throw new SQLException("Database is not available");
+        }
+        Connection connection = dataSource.getConnection();
+        PreparedStatement statement = connection.prepareStatement(sql);
+        InvocationHandler handler = (proxy, method, args) -> {
+            if ("close".equals(method.getName())) {
+                SQLException thrown = null;
+                try {
+                    statement.close();
+                } catch (SQLException ex) {
+                    thrown = ex;
+                }
+                try {
+                    connection.close();
+                } catch (SQLException ex) {
+                    if (thrown == null) {
+                        thrown = ex;
+                    }
+                }
+                if (thrown != null) {
+                    throw thrown;
+                }
+                return null;
+            }
+            try {
+                return method.invoke(statement, args);
+            } catch (InvocationTargetException ex) {
+                throw ex.getCause();
+            }
+        };
+        return (PreparedStatement) Proxy.newProxyInstance(
+                PreparedStatement.class.getClassLoader(),
+                new Class[]{PreparedStatement.class},
+                handler);
+    }
+
     /**
      * Check whether there is a valid connection to the database.
      *
      * @return whether there is a valid connection
      */
     public boolean isConnectionValid() {
-        return dataSource.isRunning();
+        return dataSource != null && dataSource.isRunning();
     }
 
     /**

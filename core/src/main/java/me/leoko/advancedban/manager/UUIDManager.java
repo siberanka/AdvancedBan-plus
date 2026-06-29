@@ -2,6 +2,7 @@ package me.leoko.advancedban.manager;
 
 import me.leoko.advancedban.MethodInterface;
 import me.leoko.advancedban.Universal;
+import me.leoko.advancedban.utils.Security;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -16,7 +17,7 @@ import java.util.Map.Entry;
 public class UUIDManager {
     private static UUIDManager instance = null;
     private FetcherMode mode;
-    private final Map<String, String> activeUUIDs = new HashMap<>();
+    private final Map<String, String> activeUUIDs = new java.util.concurrent.ConcurrentHashMap<>();
     
     private MethodInterface mi() {
     	return Universal.get().getMethods();
@@ -68,6 +69,9 @@ public class UUIDManager {
     public String getInitialUUID(String name) {
     	MethodInterface mi = mi();
         name = name.toLowerCase();
+        if (!Security.isValidPlayerName(name)) {
+            return null;
+        }
         if (mode == FetcherMode.DISABLED)
             return name;
 
@@ -194,10 +198,16 @@ public class UUIDManager {
             }
         }
 
-        try (Scanner scanner = new Scanner(new URL("https://api.mojang.com/user/profiles/" + uuid + "/names").openStream(), "UTF-8")) {
+        try {
+            HttpURLConnection request = (HttpURLConnection) new URL("https://api.mojang.com/user/profiles/" + uuid + "/names").openConnection();
+            request.setConnectTimeout(Security.getInt("Security.HttpConnectTimeoutMillis", 3000));
+            request.setReadTimeout(Security.getInt("Security.HttpReadTimeoutMillis", 3000));
+            request.setUseCaches(false);
+            try (Scanner scanner = new Scanner(request.getInputStream(), "UTF-8")) {
             String s = scanner.useDelimiter("\\A").next();
             s = s.substring(s.lastIndexOf('{'), s.lastIndexOf('}') + 1);
             return mi.parseJSON(s, "name");
+            }
         } catch (Exception exc) {
             return null;
         }
@@ -209,6 +219,9 @@ public class UUIDManager {
     	MethodInterface mi = mi();
         name = name.toLowerCase();
         HttpURLConnection request = (HttpURLConnection) new URL(url.replaceAll("%NAME%", name).replaceAll("%TIMESTAMP%", new Date().getTime() + "")).openConnection();
+        request.setConnectTimeout(Security.getInt("Security.HttpConnectTimeoutMillis", 3000));
+        request.setReadTimeout(Security.getInt("Security.HttpReadTimeoutMillis", 3000));
+        request.setUseCaches(false);
         request.connect();
 
         String uuid = mi.parseJSON(new InputStreamReader(request.getInputStream()), key);
