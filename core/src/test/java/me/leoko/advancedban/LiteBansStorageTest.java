@@ -52,4 +52,23 @@ public class LiteBansStorageTest {
             Universal.get().shutdown();
         }
     }
+
+    @Test
+    public void shouldResolveTypedIdsWhenLiteBansTablesShareNumericIds() {
+        Universal.get().setup(new TestMethods(dataFolder, Map.of("Database.database-format", "litebans")));
+        try {
+            Punishment ban = new Punishment("liteban", "liteban", "Ban row",
+                    "JUnit5", PunishmentType.BAN, TimeManager.getTime(), -1, null, -1);
+            Punishment warn = new Punishment("litewarn", "litewarn", "Warn row",
+                    "JUnit5", PunishmentType.WARNING, TimeManager.getTime(), -1, null, -1);
+
+            ban.create();
+            warn.create();
+
+            assertEquals(ban.getId(), warn.getId(), "Independent LiteBans tables can share numeric ids");
+            assertEquals(PunishmentType.WARNING, PunishmentManager.get().getWarn(warn.getId()).getType());
+        } finally {
+            Universal.get().shutdown();
+        }
+    }
 }

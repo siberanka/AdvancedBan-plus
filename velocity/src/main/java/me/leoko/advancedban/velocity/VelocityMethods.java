@@ -104,7 +104,7 @@ public class VelocityMethods implements MethodInterface {
 
     @Override
     public String getVersion() {
-        return "2026.06.29.5";
+        return "2026.06.29.6";
     }
 
     @Override

@@ -225,6 +225,9 @@ public class TestMethods implements MethodInterface {
 
     @Override
     public String getString(Object file, String path) {
+        if (config.containsKey(path)) {
+            return String.valueOf(config.get(path));
+        }
         return path;
     }
 
@@ -285,6 +288,12 @@ public class TestMethods implements MethodInterface {
 
     @Override
     public boolean contains(Object file, String path) {
+        if (config.containsKey(path)) {
+            return true;
+        }
+        if (path.startsWith("WarnActions.")) {
+            return false;
+        }
         return true;
     }
 

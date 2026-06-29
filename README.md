@@ -2,7 +2,7 @@
 
 Modernized AdvancedBan build for Bukkit/Spigot/Paper, BungeeCord and Velocity networks.
 
-Version: `2026.06.29.5`
+Version: `2026.06.29.6`
 Authors: Leoko, siberanka
 License: GPL-3.0
 
@@ -32,7 +32,7 @@ This fork adds:
 
 ## Runtime
 
-AdvancedBan Plus `2026.06.29.5` is built for Java 21. This follows the modern Minecraft server ecosystem in 2026 and allows the project to use current dependency lines such as HikariCP 7.x, JUnit 6.x and current platform APIs.
+AdvancedBan Plus `2026.06.29.6` is built for Java 21. This follows the modern Minecraft server ecosystem in 2026 and allows the project to use current dependency lines such as HikariCP 7.x, JUnit 6.x and current platform APIs.
 
 ## Supported Versions
 
@@ -112,11 +112,11 @@ On Windows hosts where the JDK trust store does not include the system certifica
 mvn clean package "-Djavax.net.ssl.trustStoreType=Windows-ROOT"
 ```
 
-Release `2026.06.29.5` was verified with `mvn test` and `mvn clean package` using the Windows root trust-store flag in this workspace.
+Release `2026.06.29.6` was verified with `mvn test` and `mvn clean package` using the Windows root trust-store flag in this workspace.
 
 Build outputs:
 
-- `bukkit/target/AdvancedBan-Bukkit-2026.06.29.5-RELEASE.jar`
-- `bungee/target/AdvancedBan-Bungee-2026.06.29.5-RELEASE.jar`
-- `velocity/target/AdvancedBan-Velocity-2026.06.29.5-RELEASE.jar`
-- `bundle/target/AdvancedBan-Bundle-2026.06.29.5-RELEASE.jar`
+- `bukkit/target/AdvancedBan-Bukkit-2026.06.29.6-RELEASE.jar`
+- `bungee/target/AdvancedBan-Bungee-2026.06.29.6-RELEASE.jar`
+- `velocity/target/AdvancedBan-Velocity-2026.06.29.6-RELEASE.jar`
+- `bundle/target/AdvancedBan-Bundle-2026.06.29.6-RELEASE.jar`

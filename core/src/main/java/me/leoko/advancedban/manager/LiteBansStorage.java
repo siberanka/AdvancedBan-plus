@@ -51,9 +51,9 @@ final class LiteBansStorage {
             case SELECT_USER_PUNISHMENTS_HISTORY_BY_CALCULATION:
                 return byCalculation(String.valueOf(parameters[0]), String.valueOf(parameters[1]));
             case SELECT_PUNISHMENT_BY_ID:
-                return byId(parameters[0], true);
+                return byId(parameters[0], true, parameters.length > 1 ? parseType(String.valueOf(parameters[1])) : null);
             case SELECT_PUNISHMENT_HISTORY_BY_ID:
-                return byId(parameters[0], false);
+                return byId(parameters[0], false, parameters.length > 1 ? parseType(String.valueOf(parameters[1])) : null);
             case SELECT_ALL_PUNISHMENTS:
                 return all(true, -1);
             case SELECT_ALL_PUNISHMENTS_HISTORY:
@@ -192,7 +192,18 @@ final class LiteBansStorage {
     }
 
     private ResultSet byId(Object id, boolean current) {
+        return byId(id, current, null);
+    }
+
+    private ResultSet byId(Object id, boolean current, PunishmentType type) {
         String where = current ? activeWhere("p") + " AND p.id = ?" : "p.id = ?";
+        if (type != null) {
+            String table = tableFor(type);
+            if (table == null) {
+                return null;
+            }
+            return databaseManager.executeRawResultStatement(selectFor(table, type, current) + " WHERE " + where, id);
+        }
         return databaseManager.executeRawResultStatement(union(where, current, -1), repeatedParams(current, id));
     }
 

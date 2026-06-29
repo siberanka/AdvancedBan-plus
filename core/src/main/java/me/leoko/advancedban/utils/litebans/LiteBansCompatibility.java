@@ -230,7 +230,7 @@ public final class LiteBansCompatibility {
             if (id > Integer.MAX_VALUE || id < 0) {
                 return null;
             }
-            Punishment punishment = PunishmentManager.get().getPunishment((int) id);
+            Punishment punishment = PunishmentManager.get().getPunishment((int) id, basicType);
             return punishment != null && punishment.getType().getBasic() == basicType ? toEntry(punishment, true) : null;
         }
 
@@ -238,7 +238,7 @@ public final class LiteBansCompatibility {
             if (id > Integer.MAX_VALUE || id < 0) {
                 return null;
             }
-            Punishment punishment = PunishmentManager.get().getHistoryPunishment((int) id);
+            Punishment punishment = PunishmentManager.get().getHistoryPunishment((int) id, basicType);
             return punishment != null && punishment.getType().getBasic() == basicType ? toEntry(punishment, false) : null;
         }
 

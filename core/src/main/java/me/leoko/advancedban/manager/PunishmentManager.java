@@ -192,20 +192,28 @@ public class PunishmentManager {
      * @return the punishment
      */
     public Punishment getPunishment(int id) {
+        return getPunishment(id, null);
+    }
+
+    public Punishment getPunishment(int id, PunishmentType basicType) {
         final Optional<Punishment> cachedPunishment = getLoadedPunishments(false).stream()
-                .filter(punishment -> punishment.getId() == id).findAny();
+                .filter(punishment -> punishment.getId() == id)
+                .filter(punishment -> basicType == null || punishment.getType().getBasic() == basicType)
+                .findAny();
 
         if (cachedPunishment.isPresent())
             return cachedPunishment.get();
 
 
-        try (ResultSet rs = DatabaseManager.get().executeResultStatement(SQLQuery.SELECT_PUNISHMENT_BY_ID, id)) {
+        try (ResultSet rs = DatabaseManager.get().isLiteBansFormat() && basicType != null
+                ? DatabaseManager.get().executeResultStatement(SQLQuery.SELECT_PUNISHMENT_BY_ID, id, basicType.name())
+                : DatabaseManager.get().executeResultStatement(SQLQuery.SELECT_PUNISHMENT_BY_ID, id)) {
             if (rs == null) {
                 return null;
             }
             if (rs.next()) {
                 final Punishment punishment = getPunishmentFromResultSet(rs);
-                if (!punishment.isExpired())
+                if (!punishment.isExpired() && (basicType == null || punishment.getType().getBasic() == basicType))
                     return punishment;
             }
         } catch (SQLException ex) {
@@ -219,18 +227,25 @@ public class PunishmentManager {
     }
 
     public Punishment getHistoryPunishment(int id) {
+        return getHistoryPunishment(id, null);
+    }
+
+    public Punishment getHistoryPunishment(int id, PunishmentType basicType) {
         for (Punishment punishment : history) {
-            if (punishment.getId() == id) {
+            if (punishment.getId() == id && (basicType == null || punishment.getType().getBasic() == basicType)) {
                 return punishment;
             }
         }
 
-        try (ResultSet rs = DatabaseManager.get().executeResultStatement(SQLQuery.SELECT_PUNISHMENT_HISTORY_BY_ID, id)) {
+        try (ResultSet rs = DatabaseManager.get().isLiteBansFormat() && basicType != null
+                ? DatabaseManager.get().executeResultStatement(SQLQuery.SELECT_PUNISHMENT_HISTORY_BY_ID, id, basicType.name())
+                : DatabaseManager.get().executeResultStatement(SQLQuery.SELECT_PUNISHMENT_HISTORY_BY_ID, id)) {
             if (rs == null) {
                 return null;
             }
             if (rs.next()) {
-                return getPunishmentFromResultSet(rs);
+                Punishment punishment = getPunishmentFromResultSet(rs);
+                return basicType == null || punishment.getType().getBasic() == basicType ? punishment : null;
             }
         } catch (SQLException ex) {
             Universal universal = universal();
@@ -249,7 +264,7 @@ public class PunishmentManager {
      * @return the warning
      */
     public Punishment getWarn(int id) {
-        Punishment punishment = getPunishment(id);
+        Punishment punishment = getPunishment(id, PunishmentType.WARNING);
 
         if (punishment == null)
             return null;
@@ -272,7 +287,7 @@ public class PunishmentManager {
     * @return the note
     */
    public Punishment getNote(int id) {
-       Punishment punishment = getPunishment(id);
+       Punishment punishment = getPunishment(id, PunishmentType.NOTE);
 
        if (punishment == null)
            return null;
