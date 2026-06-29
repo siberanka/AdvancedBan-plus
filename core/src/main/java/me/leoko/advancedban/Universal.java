@@ -495,8 +495,38 @@ public class Universal {
         StringWriter sw = new StringWriter();
         PrintWriter pw = new PrintWriter(sw);
         exc.printStackTrace(pw);
-        debug(sw.toString());
-        writeErrorLog(sw.toString());
+        String stackTrace = sw.toString();
+        String advice = getErrorAdvice(exc, stackTrace);
+        debug(stackTrace);
+        if (advice != null) {
+            logMessage("Console.ErrorPossibleSolution", "&ePossible solution: %SOLUTION%", "SOLUTION", advice);
+        }
+        writeErrorLog(advice == null ? stackTrace : stackTrace + "\nPossible solution: " + mi.clearFormatting(advice));
+    }
+
+    private String getErrorAdvice(Throwable throwable, String stackTrace) {
+        if (throwable == null || mi == null || mi.getMessages() == null) {
+            return null;
+        }
+        String text = String.valueOf(throwable.getMessage()) + "\n" + stackTrace;
+        if (text.contains("YamlMaintenanceManager") &&
+                (throwable instanceof ClassCastException || throwable instanceof ArrayStoreException)) {
+            return MessageManager.getMessageOrDefault("ErrorSolutions.YamlMaintenanceKeyType",
+                    "A YAML file contains numeric keys. Update AdvancedBan and let YamlMaintenance repair the file from a backup.");
+        }
+        if (throwable instanceof SQLException || text.contains("HikariPool") || text.contains("SQLTransientConnectionException")) {
+            return MessageManager.getMessageOrDefault("ErrorSolutions.DatabaseConnection",
+                    "Check database host, port, credentials, pool limits and network reachability. Keep LockdownOnError enabled until storage is healthy.");
+        }
+        if (text.contains("FoliaSchedulerBridge") || text.contains("Folia") && text.contains("scheduler")) {
+            return MessageManager.getMessageOrDefault("ErrorSolutions.FoliaScheduler",
+                    "Use the AdvancedBan-Folia jar on Folia and do not run unsupported scheduler forks or reloaders.");
+        }
+        if (text.contains("voicechat") || text.contains("BukkitVoicechatService")) {
+            return MessageManager.getMessageOrDefault("ErrorSolutions.VoiceChat",
+                    "Update Simple Voice Chat and keep VoiceChat.MuteIntegration.Enabled false until the voicechat service loads cleanly.");
+        }
+        return null;
     }
 
     /**

@@ -1,7 +1,6 @@
 package me.leoko.advancedban.bukkit.listener;
 
 import me.leoko.advancedban.Universal;
-import me.leoko.advancedban.bukkit.BukkitMain;
 import me.leoko.advancedban.manager.MessageManager;
 import me.leoko.advancedban.manager.PunishmentManager;
 import me.leoko.advancedban.manager.UUIDManager;
@@ -35,16 +34,17 @@ public class ConnectionListener implements Listener {
 
     @EventHandler
     public void onJoin(final PlayerJoinEvent event) {
+        String playerName = event.getPlayer().getName();
         Universal.get().getMethods().scheduleAsync(() -> {
-            if (event.getPlayer().getName().equalsIgnoreCase("Leoko")) {
-                Bukkit.getScheduler().runTaskLaterAsynchronously(BukkitMain.get(), () -> {
+            if (playerName.equalsIgnoreCase("Leoko")) {
+                Universal.get().getMethods().runSync(() -> {
                     if (Universal.get().broadcastLeoko()) {
                         MessageManager.getLayout(Universal.get().getMethods().getMessages(), "Broadcast.CreatorJoin")
                                 .forEach(Bukkit::broadcastMessage);
                     } else {
                         MessageManager.sendMessage(event.getPlayer(), "Broadcast.CreatorPrivate", false);
                     }
-                }, 20);
+                });
             }
         }, 20);
     }

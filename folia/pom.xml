@@ -3,61 +3,54 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    
+
     <parent>
         <groupId>me.leoko.advancedban</groupId>
         <artifactId>AdvancedBan</artifactId>
         <version>2026.06.29.7</version>
     </parent>
 
-    <artifactId>AdvancedBan-Bundle</artifactId>
+    <artifactId>AdvancedBan-Folia</artifactId>
     <packaging>jar</packaging>
 
+    <repositories>
+        <repository>
+            <id>spigot-repo</id>
+            <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
+        </repository>
+    </repositories>
+
     <dependencies>
+        <dependency>
+            <groupId>org.spigotmc</groupId>
+            <artifactId>spigot-api</artifactId>
+            <version>1.21.11-R0.2-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
         <dependency>
             <groupId>me.leoko.advancedban</groupId>
             <artifactId>AdvancedBan-Bukkit</artifactId>
             <version>${project.version}</version>
-            <scope>runtime</scope>
-        </dependency>
-        <dependency>
-            <groupId>me.leoko.advancedban</groupId>
-            <artifactId>AdvancedBan-Bungee</artifactId>
-            <version>${project.version}</version>
-            <scope>runtime</scope>
-        </dependency>
-        <dependency>
-            <groupId>me.leoko.advancedban</groupId>
-            <artifactId>AdvancedBan-Velocity</artifactId>
-            <version>${project.version}</version>
-            <scope>runtime</scope>
+            <scope>compile</scope>
         </dependency>
     </dependencies>
-    
+
     <build>
         <plugins>
-                <plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
                 <version>3.6.2</version>
                 <configuration>
+                    <filters>
+                        <filter>
+                            <artifact>me.leoko.advancedban:AdvancedBan-Bukkit</artifact>
+                            <excludes>
+                                <exclude>plugin.yml</exclude>
+                            </excludes>
+                        </filter>
+                    </filters>
                     <relocations>
-                    	<relocation>
-                    		<pattern>org.apache.commons</pattern>
-                    		<shadedPattern>${project.groupId}.shaded.org.apache.commons</shadedPattern>
-                    	</relocation>
-                    	<relocation>
-                    		<pattern>org.slf4j</pattern>
-                    		<shadedPattern>${project.groupId}.shaded.org.slf4j</shadedPattern>
-                    	</relocation>
-                    	<relocation>
-                    		<pattern>com.zaxxer.hikari</pattern>
-                    		<shadedPattern>${project.groupId}.shaded.com.zaxxer.hikari</shadedPattern>
-                    	</relocation>
-                    	<relocation>
-                    		<pattern>org.hsqldb</pattern>
-                    		<shadedPattern>${project.groupId}.shaded.org.hsqldb</shadedPattern>
-                    	</relocation>
                         <relocation>
                             <pattern>org.bstats</pattern>
                             <shadedPattern>${project.groupId}.shaded.org.bstats</shadedPattern>

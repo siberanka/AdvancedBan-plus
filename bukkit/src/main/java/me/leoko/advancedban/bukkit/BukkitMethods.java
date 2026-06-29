@@ -182,6 +182,10 @@ public class BukkitMethods implements MethodInterface {
 
     @Override
     public void sendMessage(Object player, String msg) {
+        if (FoliaSchedulerBridge.isFolia() && player instanceof Player) {
+            FoliaSchedulerBridge.runEntity((Player) player, getPlugin(), () -> ((CommandSender) player).sendMessage(msg));
+            return;
+        }
         ((CommandSender) player).sendMessage(msg);
     }
 
@@ -212,8 +216,13 @@ public class BukkitMethods implements MethodInterface {
 
     @Override
     public void kickPlayer(String player, String reason) {
-        if (getPlayer(player) != null && getPlayer(player).isOnline()) {
-            getPlayer(player).kickPlayer(reason);
+        Player target = getPlayer(player);
+        if (target != null && target.isOnline()) {
+            if (FoliaSchedulerBridge.isFolia()) {
+                FoliaSchedulerBridge.runEntity(target, getPlugin(), () -> target.kickPlayer(reason));
+            } else {
+                target.kickPlayer(reason);
+            }
         }
     }
 
@@ -224,21 +233,37 @@ public class BukkitMethods implements MethodInterface {
 
     @Override
     public void scheduleAsyncRep(Runnable rn, long l1, long l2) {
+        if (FoliaSchedulerBridge.isFolia()) {
+            FoliaSchedulerBridge.runAsyncRepeating(getPlugin(), rn, l1, l2);
+            return;
+        }
         Bukkit.getScheduler().runTaskTimerAsynchronously(getPlugin(), rn, l1, l2);
     }
 
     @Override
     public void scheduleAsync(Runnable rn, long l1) {
+        if (FoliaSchedulerBridge.isFolia()) {
+            FoliaSchedulerBridge.runAsyncDelayed(getPlugin(), rn, l1);
+            return;
+        }
         Bukkit.getScheduler().runTaskLaterAsynchronously(getPlugin(), rn, l1);
     }
 
     @Override
     public void runAsync(Runnable rn) {
+        if (FoliaSchedulerBridge.isFolia()) {
+            FoliaSchedulerBridge.runAsync(getPlugin(), rn);
+            return;
+        }
         Bukkit.getScheduler().runTaskAsynchronously(getPlugin(), rn);
     }
 
     @Override
     public void runSync(Runnable rn) {
+        if (FoliaSchedulerBridge.isFolia()) {
+            FoliaSchedulerBridge.runGlobal(getPlugin(), rn);
+            return;
+        }
         Bukkit.getScheduler().runTask(getPlugin(), rn);
     }
 
@@ -247,7 +272,7 @@ public class BukkitMethods implements MethodInterface {
         if (cmd == null || cmd.length() > Security.DEFAULT_MAX_TOTAL_COMMAND_LENGTH) {
             return;
         }
-        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd);
+        runSync(() -> Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd));
     }
 
     @Override

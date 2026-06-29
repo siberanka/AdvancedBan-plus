@@ -34,7 +34,7 @@ public class BukkitMain extends JavaPlugin {
             AsyncPlayerPreLoginEvent apple = new AsyncPlayerPreLoginEvent(player.getName(), player.getAddress().getAddress(), player.getUniqueId());
             connListener.onConnect(apple);
             if (apple.getLoginResult() == AsyncPlayerPreLoginEvent.Result.KICK_BANNED) {
-                player.kickPlayer(apple.getKickMessage());
+                Universal.get().getMethods().kickPlayer(player.getName(), apple.getKickMessage());
             }
         });
 

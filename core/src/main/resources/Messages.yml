@@ -78,6 +78,7 @@ Console:
   RedisBungeeHooked: "RedisBungee detected, hooking into it!"
   PluginMessagePunishmentCreated: "A punishment was created using PluginMessaging listener."
   PluginMessagePunishmentFailed: "&cAn exception occurred while reading a punishment from plugin messaging channel."
+  ErrorPossibleSolution: "&ePossible solution: &7%SOLUTION%"
   PunishmentLoadFailed: "&cAn error has occurred loading punishments from the database."
   PunishmentGetForTargetFailed: "&cAn error has occurred getting punishments for %TARGET%."
   PunishmentQueryFailed: "&cAn error has occurred executing a query in the database."
@@ -95,6 +96,12 @@ Console:
   LiteBansStorageUnsupportedType: "&cLiteBans database format cannot store punishment type %TYPE%."
   CommandRegistrationFailed: "&cFailed to register command %COMMAND%."
   JsonParseFailed: "&cFailed to parse JSON response."
+
+ErrorSolutions:
+  YamlMaintenanceKeyType: "A YAML file contains numeric keys, usually WarnActions or TempPerms. Update AdvancedBan, keep YamlMaintenance enabled and restore from yml-backups if the file was manually edited."
+  DatabaseConnection: "Check database host, port, credentials, pool limits and network reachability. Keep LockdownOnError enabled until storage is healthy."
+  FoliaScheduler: "Use the AdvancedBan-Folia jar on Folia and avoid unsupported reloaders or forks that disable Paper/Folia scheduler APIs."
+  VoiceChat: "Update Simple Voice Chat and keep VoiceChat.MuteIntegration.Enabled false until the voicechat service loads cleanly."
 
 AdvancedBan:
   Reloaded: "&aReloaded! YAML files were checked and repaired if needed."

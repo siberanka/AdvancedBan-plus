@@ -53,8 +53,8 @@ public class YamlMaintenanceManager {
             return true;
         }
 
-        Map<String, Object> defaults = loadDefault(fileName);
-        Map<String, Object> current;
+        Map<Object, Object> defaults = loadDefault(fileName);
+        Map<Object, Object> current;
         try {
             current = loadYaml(file);
         } catch (RuntimeException ex) {
@@ -66,7 +66,7 @@ public class YamlMaintenanceManager {
             return true;
         }
 
-        Map<String, Object> merged = deepCopy(current);
+        Map<Object, Object> merged = deepCopy(current);
         int missing = mergeMissing(merged, defaults);
         int removed = 0;
         if (getBoolean("YamlMaintenance.RemoveUnknownEntries", false)) {
@@ -90,7 +90,7 @@ public class YamlMaintenanceManager {
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String, Object> loadYaml(File file) throws IOException {
+    private Map<Object, Object> loadYaml(File file) throws IOException {
         try (Reader reader = Files.newBufferedReader(file.toPath(), StandardCharsets.UTF_8)) {
             Object loaded = createYaml().load(reader);
             if (loaded == null) {
@@ -99,18 +99,18 @@ public class YamlMaintenanceManager {
             if (!(loaded instanceof Map)) {
                 throw new IllegalArgumentException("YAML root is not a map: " + file.getName());
             }
-            return (Map<String, Object>) loaded;
+            return (Map<Object, Object>) loaded;
         }
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String, Object> loadDefault(String fileName) throws IOException {
+    private Map<Object, Object> loadDefault(String fileName) throws IOException {
         try (InputStream input = getClass().getClassLoader().getResourceAsStream(fileName)) {
             if (input == null) {
                 throw new IOException("Missing bundled YAML resource: " + fileName);
             }
             Object loaded = createYaml().load(new InputStreamReader(input, StandardCharsets.UTF_8));
-            return loaded instanceof Map ? (Map<String, Object>) loaded : new LinkedHashMap<>();
+            return loaded instanceof Map ? (Map<Object, Object>) loaded : new LinkedHashMap<>();
         }
     }
 
@@ -129,19 +129,19 @@ public class YamlMaintenanceManager {
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String, Object> deepCopy(Map<String, Object> source) {
-        Map<String, Object> copy = new LinkedHashMap<>();
-        for (Map.Entry<String, Object> entry : source.entrySet()) {
+    private Map<Object, Object> deepCopy(Map<?, ?> source) {
+        Map<Object, Object> copy = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : source.entrySet()) {
             Object value = entry.getValue();
-            copy.put(entry.getKey(), value instanceof Map ? deepCopy((Map<String, Object>) value) : value);
+            copy.put(entry.getKey(), value instanceof Map ? deepCopy((Map<?, ?>) value) : value);
         }
         return copy;
     }
 
     @SuppressWarnings("unchecked")
-    private int mergeMissing(Map<String, Object> current, Map<String, Object> defaults) {
+    private int mergeMissing(Map<Object, Object> current, Map<Object, Object> defaults) {
         int changes = 0;
-        for (Map.Entry<String, Object> entry : defaults.entrySet()) {
+        for (Map.Entry<Object, Object> entry : defaults.entrySet()) {
             Object currentValue = current.get(entry.getKey());
             Object defaultValue = entry.getValue();
             if (!current.containsKey(entry.getKey())) {
@@ -151,29 +151,29 @@ public class YamlMaintenanceManager {
                 current.put(entry.getKey(), defaultValue);
                 changes++;
             } else if (currentValue instanceof Map && defaultValue instanceof Map) {
-                changes += mergeMissing((Map<String, Object>) currentValue, (Map<String, Object>) defaultValue);
+                changes += mergeMissing((Map<Object, Object>) currentValue, (Map<Object, Object>) defaultValue);
             }
         }
         return changes;
     }
 
     @SuppressWarnings("unchecked")
-    private int removeUnknown(Map<String, Object> current, Map<String, Object> defaults) {
+    private int removeUnknown(Map<Object, Object> current, Map<Object, Object> defaults) {
         int changes = 0;
-        for (String key : current.keySet().toArray(new String[0])) {
+        for (Object key : current.keySet().toArray()) {
             Object currentValue = current.get(key);
             Object defaultValue = defaults.get(key);
             if (!defaults.containsKey(key)) {
                 current.remove(key);
                 changes++;
             } else if (currentValue instanceof Map && defaultValue instanceof Map) {
-                changes += removeUnknown((Map<String, Object>) currentValue, (Map<String, Object>) defaultValue);
+                changes += removeUnknown((Map<Object, Object>) currentValue, (Map<Object, Object>) defaultValue);
             }
         }
         return changes;
     }
 
-    private void writeYaml(File file, Map<String, Object> values) throws IOException {
+    private void writeYaml(File file, Map<Object, Object> values) throws IOException {
         Files.writeString(file.toPath(), createYaml().dump(values), StandardCharsets.UTF_8);
     }
 

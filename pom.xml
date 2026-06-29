@@ -6,7 +6,7 @@
     
     <groupId>me.leoko.advancedban</groupId>
     <artifactId>AdvancedBan</artifactId>
-    <version>2026.06.29.6</version>
+    <version>2026.06.29.7</version>
     <packaging>pom</packaging>
 
     <modules>
@@ -14,6 +14,7 @@
         <module>bukkit</module>
         <module>bungee</module>
         <module>velocity</module>
+        <module>folia</module>
         <module>bundle</module>
     </modules>
 

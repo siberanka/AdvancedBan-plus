@@ -1,6 +1,6 @@
 name: AdvancedBan
 version: ${project.version}
-main: ${project.groupId}.bukkit.BukkitMain
+main: ${project.groupId}.folia.FoliaMain
 authors: [Leoko, siberanka]
 softdepend: [Vault, voicechat]
 api-version: 1.21
@@ -34,11 +34,11 @@ commands:
   banlist:
     description: See all punishments
   history:
-    description: See a user''s history
+    description: See a user's history
   warns:
-    description: See your or a user''s warns
+    description: See your or a user's warns
   notes:
-    description: See your or a user''s notes
+    description: See your or a user's notes
   check:
     description: Get all information about a user
   systemPrefs:
