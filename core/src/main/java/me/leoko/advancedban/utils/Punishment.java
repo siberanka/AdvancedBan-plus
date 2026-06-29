@@ -79,29 +79,37 @@ public class Punishment {
 
         final int cWarnings = getType().getBasic() == PunishmentType.WARNING ? (PunishmentManager.get().getCurrentWarns(getUuid()) + 1) : 0;
 
-        DatabaseManager.get().executeStatement(SQLQuery.INSERT_PUNISHMENT_HISTORY, getName(), getUuid(), getReason(), getOperator(), getType().name(), getStart(), getEnd(), getCalculation());
-
-        if (getType() != PunishmentType.KICK) {
-            try {
-                DatabaseManager.get().executeStatement(SQLQuery.INSERT_PUNISHMENT, getName(), getUuid(), getReason(), getOperator(), getType().name(), getStart(), getEnd(), getCalculation());
-                try (ResultSet rs = DatabaseManager.get().executeResultStatement(SQLQuery.SELECT_EXACT_PUNISHMENT, getUuid(), getStart(), getType().name())) {
-                    if (rs.next()) {
-                        id = rs.getInt("id");
-                    } else {
-                        Universal.get().logMessage("Console.PunishmentIdUpdateFailed", "&cCould not update punishment ID. Please restart the server to resolve this issue.");
-                        Universal.get().debug("Failed at: " + toString());
-                    }
-                }
-            } catch (SQLException ex) {
-                Universal.get().debugSqlException(ex);
+        if (DatabaseManager.get().isLiteBansFormat()) {
+            id = DatabaseManager.get().insertPunishment(this, silent);
+            if (id == -1) {
+                Universal.get().logMessage("Console.PunishmentIdUpdateFailed", "&cCould not update punishment ID. Please restart the server to resolve this issue.");
+                Universal.get().debug("Failed at: " + toString());
             }
         } else {
-            try (ResultSet rs = DatabaseManager.get().executeResultStatement(SQLQuery.SELECT_EXACT_PUNISHMENT_HISTORY, getUuid(), getStart(), getType().name())) {
-                if (rs != null && rs.next()) {
-                    id = rs.getInt("id");
+            DatabaseManager.get().executeStatement(SQLQuery.INSERT_PUNISHMENT_HISTORY, getName(), getUuid(), getReason(), getOperator(), getType().name(), getStart(), getEnd(), getCalculation());
+
+            if (getType() != PunishmentType.KICK) {
+                try {
+                    DatabaseManager.get().executeStatement(SQLQuery.INSERT_PUNISHMENT, getName(), getUuid(), getReason(), getOperator(), getType().name(), getStart(), getEnd(), getCalculation());
+                    try (ResultSet rs = DatabaseManager.get().executeResultStatement(SQLQuery.SELECT_EXACT_PUNISHMENT, getUuid(), getStart(), getType().name())) {
+                        if (rs.next()) {
+                            id = rs.getInt("id");
+                        } else {
+                            Universal.get().logMessage("Console.PunishmentIdUpdateFailed", "&cCould not update punishment ID. Please restart the server to resolve this issue.");
+                            Universal.get().debug("Failed at: " + toString());
+                        }
+                    }
+                } catch (SQLException ex) {
+                    Universal.get().debugSqlException(ex);
                 }
-            } catch (SQLException ex) {
-                Universal.get().debugSqlException(ex);
+            } else {
+                try (ResultSet rs = DatabaseManager.get().executeResultStatement(SQLQuery.SELECT_EXACT_PUNISHMENT_HISTORY, getUuid(), getStart(), getType().name())) {
+                    if (rs != null && rs.next()) {
+                        id = rs.getInt("id");
+                    }
+                } catch (SQLException ex) {
+                    Universal.get().debugSqlException(ex);
+                }
             }
         }
 
@@ -152,7 +160,7 @@ public class Punishment {
         this.reason = reason;
 
         if (id != -1) {
-            DatabaseManager.get().executeStatement(SQLQuery.UPDATE_PUNISHMENT_REASON, reason, id);
+            DatabaseManager.get().updatePunishmentReason(this, reason);
         }
     }
 
@@ -189,7 +197,7 @@ public class Punishment {
             return;
         }
 
-        DatabaseManager.get().executeStatement(SQLQuery.DELETE_PUNISHMENT, getId());
+        DatabaseManager.get().revokePunishment(this, who);
 
         if (removeCache) {
             PunishmentManager.get().getLoadedPunishments(false).remove(this);

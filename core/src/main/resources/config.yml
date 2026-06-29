@@ -212,6 +212,11 @@ ErrorLog:
 
 # HikariCP settings. Keep these conservative unless your database is dedicated to punishments.
 Database:
+  # Storage schema used for punishment rows.
+  # default = AdvancedBan tables (Punishments/PunishmentHistory).
+  # litebans = LiteBans-compatible tables (litebans_bans/mutes/warnings/kicks).
+  # Switching formats never deletes old rows; back up before changing production networks.
+  database-format: default
   # Maximum SQL connections AdvancedBan may open.
   MaximumPoolSize: 10
   # Idle connections kept warm.

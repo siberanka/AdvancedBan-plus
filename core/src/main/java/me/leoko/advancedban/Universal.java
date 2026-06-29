@@ -264,7 +264,7 @@ public class Universal {
     private String[] getConsoleParameters(String updateStatus) {
         return new String[]{
                 "VERSION", mi.getVersion(),
-                "STORAGE", DatabaseManager.get().isUseMySQL() ? "MySQL (external)" : "HSQLDB (local)",
+                "STORAGE", DatabaseManager.get().getStorageDescription(),
                 "UPDATE", updateStatus,
                 "GITHUB", "https://github.com/siberanka/AdvancedBan-plus/issues",
                 "DISCORD", "https://discord.gg/ycDG6rS"

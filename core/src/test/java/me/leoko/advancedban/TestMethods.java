@@ -7,7 +7,9 @@ import me.leoko.advancedban.utils.tabcompletion.TabCompleter;
 import java.io.File;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.fail;
@@ -17,9 +19,15 @@ import static org.junit.jupiter.api.Assertions.fail;
  */
 public class TestMethods implements MethodInterface {
 	private final File dataFolder;
+    private final Map<String, Object> config;
 	
     public TestMethods(File dataFolder){
+        this(dataFolder, Collections.emptyMap());
+    }
+
+    public TestMethods(File dataFolder, Map<String, Object> config){
     	this.dataFolder = Objects.requireNonNull(dataFolder);
+        this.config = Objects.requireNonNull(config);
     }
 
     @Override
@@ -239,6 +247,9 @@ public class TestMethods implements MethodInterface {
 
     @Override
     public boolean getBoolean(Object file, String path, boolean def) {
+        if (config.containsKey(path)) {
+            return Boolean.parseBoolean(String.valueOf(config.get(path)));
+        }
         if(path.equals("DetailedEnableMessage")
                 || path.equals("UUID-Fetcher.Enabled")
                 || path.equals("DetailedDisableMessage")) return false;
@@ -250,16 +261,25 @@ public class TestMethods implements MethodInterface {
 
     @Override
     public String getString(Object file, String path, String def) {
+        if (config.containsKey(path)) {
+            return String.valueOf(config.get(path));
+        }
         return def;
     }
 
     @Override
     public long getLong(Object file, String path, long def) {
+        if (config.containsKey(path)) {
+            return Long.parseLong(String.valueOf(config.get(path)));
+        }
         return def;
     }
 
     @Override
     public int getInteger(Object file, String path, int def) {
+        if (config.containsKey(path)) {
+            return Integer.parseInt(String.valueOf(config.get(path)));
+        }
         return def;
     }
 

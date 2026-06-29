@@ -56,6 +56,7 @@ Console:
   - ""
   DatabaseManagerEnableFailed: "&cFailed enabling database-manager..."
   DatabaseConfigureFailed: "&cERROR: Failed to configure data source!"
+  DatabaseFormatInvalid: "&cUnknown Database.database-format '%FORMAT%'. Falling back to default."
   DatabaseShutdownFailed: "&cAn unexpected error has occurred turning off the database."
   DatabaseUnavailable: "&cDatabase is not available; statement skipped."
   DatabaseStatementFailed: "&cAn unexpected error has occurred executing a database statement. Check latest.log/error.log and report this at https://github.com/siberanka/AdvancedBan-plus/issues"
@@ -90,6 +91,8 @@ Console:
   PunishmentDeleteKickBlocked: "&cFailed deleting: kicks cannot be deleted."
   PunishmentDeleteNotCreated: "&cFailed deleting: the punishment is not created yet."
   LiteBansCompatibilityEnabled: "LiteBans API compatibility enabled."
+  LiteBansDatabaseFormatEnabled: "LiteBans database format enabled. Existing AdvancedBan tables are left untouched."
+  LiteBansStorageUnsupportedType: "&cLiteBans database format cannot store punishment type %TYPE%."
   CommandRegistrationFailed: "&cFailed to register command %COMMAND%."
   JsonParseFailed: "&cFailed to parse JSON response."
 

@@ -3,7 +3,9 @@ package me.leoko.advancedban.manager;
 import com.zaxxer.hikari.HikariDataSource;
 import me.leoko.advancedban.Universal;
 import me.leoko.advancedban.utils.DynamicDataSource;
+import me.leoko.advancedban.utils.Punishment;
 import me.leoko.advancedban.utils.SQLQuery;
+import me.leoko.advancedban.utils.Security;
 
 import javax.sql.rowset.CachedRowSet;
 import javax.sql.rowset.RowSetFactory;
@@ -28,6 +30,8 @@ public class DatabaseManager {
 
     private HikariDataSource dataSource;
     private boolean useMySQL;
+    private DatabaseFormat databaseFormat = DatabaseFormat.DEFAULT;
+    private LiteBansStorage liteBansStorage;
 
     private RowSetFactory factory;
     
@@ -49,6 +53,8 @@ public class DatabaseManager {
      */
     public void setup(boolean useMySQLServer) {
         useMySQL = useMySQLServer;
+        databaseFormat = readDatabaseFormat();
+        liteBansStorage = databaseFormat == DatabaseFormat.LITEBANS ? new LiteBansStorage(this) : null;
 
         try {
             dataSource = new DynamicDataSource(useMySQL).generateDataSource();
@@ -58,8 +64,14 @@ public class DatabaseManager {
             return;
         }
 
-        executeStatement(SQLQuery.CREATE_TABLE_PUNISHMENT);
-        executeStatement(SQLQuery.CREATE_TABLE_PUNISHMENT_HISTORY);
+        if (isLiteBansFormat()) {
+            liteBansStorage.setup();
+            Universal.get().logMessage("Console.LiteBansDatabaseFormatEnabled",
+                    "LiteBans database format enabled. Existing AdvancedBan tables are left untouched.");
+        } else {
+            executeStatement(SQLQuery.CREATE_TABLE_PUNISHMENT);
+            executeStatement(SQLQuery.CREATE_TABLE_PUNISHMENT_HISTORY);
+        }
     }
 
     /**
@@ -104,6 +116,10 @@ public class DatabaseManager {
      * @param parameters the parameters
      */
     public void executeStatement(SQLQuery sql, Object... parameters) {
+        if (isLiteBansFormat() && liteBansStorage.handles(sql)) {
+            liteBansStorage.execute(sql, parameters);
+            return;
+        }
         executeStatement(sql, false, parameters);
     }
 
@@ -115,6 +131,9 @@ public class DatabaseManager {
      * @return the result set
      */
     public ResultSet executeResultStatement(SQLQuery sql, Object... parameters) {
+        if (isLiteBansFormat() && liteBansStorage.handles(sql)) {
+            return liteBansStorage.query(sql, parameters);
+        }
         return executeStatement(sql, true, parameters);
     }
 
@@ -150,6 +169,37 @@ public class DatabaseManager {
             Universal.get().debugException(ex);
         }
         return null;
+    }
+
+    public void executeRawStatement(String sql, Object... parameters) {
+        executeStatement(sql, false, parameters);
+    }
+
+    public ResultSet executeRawResultStatement(String sql, Object... parameters) {
+        return executeStatement(sql, true, parameters);
+    }
+
+    public int insertPunishment(Punishment punishment, boolean silent) {
+        if (isLiteBansFormat()) {
+            return liteBansStorage.insert(punishment, silent);
+        }
+        return -1;
+    }
+
+    public void revokePunishment(Punishment punishment, String who) {
+        if (isLiteBansFormat()) {
+            liteBansStorage.revoke(punishment, who);
+        } else {
+            executeStatement(SQLQuery.DELETE_PUNISHMENT, punishment.getId());
+        }
+    }
+
+    public void updatePunishmentReason(Punishment punishment, String reason) {
+        if (isLiteBansFormat()) {
+            liteBansStorage.updateReason(punishment, reason);
+        } else {
+            executeStatement(SQLQuery.UPDATE_PUNISHMENT_REASON, reason, punishment.getId());
+        }
     }
 
     public PreparedStatement prepareExternalStatement(String sql) throws SQLException {
@@ -206,5 +256,39 @@ public class DatabaseManager {
      */
     public boolean isUseMySQL() {
         return useMySQL;
+    }
+
+    public boolean isLiteBansFormat() {
+        return databaseFormat == DatabaseFormat.LITEBANS && liteBansStorage != null;
+    }
+
+    public String getStorageDescription() {
+        String engine = useMySQL ? "MySQL/MariaDB" : "HSQLDB";
+        return isLiteBansFormat() ? engine + " (LiteBans format)" : engine + " (AdvancedBan format)";
+    }
+
+    private DatabaseFormat readDatabaseFormat() {
+        String configured;
+        try {
+            configured = Universal.get().getMethods().getString(Universal.get().getMethods().getConfig(),
+                    "Database.database-format", "default");
+        } catch (RuntimeException ex) {
+            configured = "default";
+        }
+        configured = configured == null ? "default" : configured.trim().toLowerCase();
+        if ("litebans".equals(configured)) {
+            return DatabaseFormat.LITEBANS;
+        }
+        if (!"default".equals(configured)) {
+            Universal.get().logMessage("Console.DatabaseFormatInvalid",
+                    "&cUnknown Database.database-format '%FORMAT%'. Falling back to default.",
+                    "FORMAT", Security.sanitizeForLog(configured));
+        }
+        return DatabaseFormat.DEFAULT;
+    }
+
+    private enum DatabaseFormat {
+        DEFAULT,
+        LITEBANS
     }
 }

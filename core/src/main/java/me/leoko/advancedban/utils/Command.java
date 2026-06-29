@@ -475,7 +475,7 @@ public enum Command {
 
                 MessageManager.getLayout(mi.getMessages(), "AdvancedBan.Info",
                         "VERSION", mi.getVersion(),
-                        "STORAGE", DatabaseManager.get().isUseMySQL() ? "MySQL (external)" : "HSQLDB (local)",
+                        "STORAGE", DatabaseManager.get().getStorageDescription(),
                         "SERVER", Universal.get().isBungee() ? "Proxy" : "Spigot/Bukkit",
                         "REDIS", String.valueOf(Universal.isRedis()),
                         "UUIDMODE", String.valueOf(UUIDManager.get().getMode()),

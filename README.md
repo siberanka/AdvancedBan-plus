@@ -2,7 +2,7 @@
 
 Modernized AdvancedBan build for Bukkit/Spigot/Paper, BungeeCord and Velocity networks.
 
-Version: `2026.06.29.4`
+Version: `2026.06.29.5`
 Authors: Leoko, siberanka
 License: GPL-3.0
 
@@ -18,6 +18,7 @@ This fork adds:
 - Safer shutdown/reload paths for database and API bridge state.
 - Thread-safe IP cache and stronger null handling around database reads.
 - LiteBans API compatibility classes behind `litebans-api-support: false`.
+- Optional LiteBans-compatible database format with non-destructive switching via `Database.database-format: litebans`.
 - Modern bStats API usage for Bukkit/Bungee builds.
 - Simple Voice Chat mute integration on Bukkit/Paper: `/mute` and `/tempmute` cancel outgoing microphone packets when Simple Voice Chat is installed.
 - GitHub release update checks against `siberanka/AdvancedBan-plus`, with `/advancedban update` and admin notifications for newer releases.
@@ -31,7 +32,7 @@ This fork adds:
 
 ## Runtime
 
-AdvancedBan Plus `2026.06.29.4` is built for Java 21. This follows the modern Minecraft server ecosystem in 2026 and allows the project to use current dependency lines such as HikariCP 7.x, JUnit 6.x and current platform APIs.
+AdvancedBan Plus `2026.06.29.5` is built for Java 21. This follows the modern Minecraft server ecosystem in 2026 and allows the project to use current dependency lines such as HikariCP 7.x, JUnit 6.x and current platform APIs.
 
 ## Supported Versions
 
@@ -79,6 +80,7 @@ YamlMaintenance:
   RemoveUnknownEntries: false
 
 Database:
+  database-format: default
   MaximumPoolSize: 10
   MinimumIdle: 1
   ConnectionTimeoutMillis: 5000
@@ -87,6 +89,8 @@ Database:
 ```
 
 `litebans-api-support` exposes compatible `litebans.api.Database`, `Events`, `Entry`, `PlayerProvider` and `RandomID` classes for plugins that query LiteBans-style ban/mute/warn state. It is disabled by default to avoid surprising behavior on networks that also run LiteBans.
+
+`Database.database-format` defaults to `default`, which keeps the original AdvancedBan tables. Setting it to `litebans` writes punishments to LiteBans-compatible tables such as `litebans_bans`, `litebans_mutes`, `litebans_warnings` and `litebans_kicks`. Switching formats is non-destructive: existing AdvancedBan rows are not dropped or migrated automatically. Back up production databases before changing formats.
 
 `VoiceChat.MuteIntegration.Enabled` is Bukkit/Paper-only. When Simple Voice Chat is installed, AdvancedBan registers a voicechat API plugin and cancels microphone packets from actively muted players. If Simple Voice Chat is not installed, the hook is not loaded.
 
@@ -108,11 +112,11 @@ On Windows hosts where the JDK trust store does not include the system certifica
 mvn clean package "-Djavax.net.ssl.trustStoreType=Windows-ROOT"
 ```
 
-Release `2026.06.29.4` was verified with `mvn test` and `mvn clean package` using the Windows root trust-store flag in this workspace.
+Release `2026.06.29.5` was verified with `mvn test` and `mvn clean package` using the Windows root trust-store flag in this workspace.
 
 Build outputs:
 
-- `bukkit/target/AdvancedBan-Bukkit-2026.06.29.4-RELEASE.jar`
-- `bungee/target/AdvancedBan-Bungee-2026.06.29.4-RELEASE.jar`
-- `velocity/target/AdvancedBan-Velocity-2026.06.29.4-RELEASE.jar`
-- `bundle/target/AdvancedBan-Bundle-2026.06.29.4-RELEASE.jar`
+- `bukkit/target/AdvancedBan-Bukkit-2026.06.29.5-RELEASE.jar`
+- `bungee/target/AdvancedBan-Bungee-2026.06.29.5-RELEASE.jar`
+- `velocity/target/AdvancedBan-Velocity-2026.06.29.5-RELEASE.jar`
+- `bundle/target/AdvancedBan-Bundle-2026.06.29.5-RELEASE.jar`

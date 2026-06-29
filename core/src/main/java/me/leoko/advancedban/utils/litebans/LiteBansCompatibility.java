@@ -274,6 +274,18 @@ public final class LiteBansCompatibility {
         }
 
         private String replaceTokens(String sql) {
+            if (DatabaseManager.get().isLiteBansFormat()) {
+                boolean mysql = DatabaseManager.get().isUseMySQL();
+                String prefix = mysql ? "`litebans_" : "litebans_";
+                String suffix = mysql ? "`" : "";
+                return sql
+                        .replace("{bans}", prefix + "bans" + suffix)
+                        .replace("{mutes}", prefix + "mutes" + suffix)
+                        .replace("{warnings}", prefix + "warnings" + suffix)
+                        .replace("{kicks}", prefix + "kicks" + suffix)
+                        .replace("{history}", prefix + "history" + suffix)
+                        .replace("{servers}", prefix + "servers" + suffix);
+            }
             String bans = SQLQuery.SELECT_ALL_PUNISHMENTS.toString().contains("`") ? "`Punishments`" : "Punishments";
             String history = SQLQuery.SELECT_ALL_PUNISHMENTS_HISTORY.toString().contains("`") ? "`PunishmentHistory`" : "PunishmentHistory";
             return sql

@@ -47,7 +47,7 @@ public class VelocityMethods implements MethodInterface {
     }
 
     static Component component(String message) {
-        return LEGACY.deserialize(message == null ? "" : message.replace('&', '§'));
+        return LEGACY.deserialize(message == null ? "" : message.replace('&', '\u00A7'));
     }
 
     @Override
@@ -104,7 +104,7 @@ public class VelocityMethods implements MethodInterface {
 
     @Override
     public String getVersion() {
-        return "2026.06.29.4";
+        return "2026.06.29.5";
     }
 
     @Override
@@ -342,7 +342,7 @@ public class VelocityMethods implements MethodInterface {
 
     @Override
     public void log(String msg) {
-        plugin.getLogger().info(Security.stripFormatting(msg.replace('&', '§')));
+        plugin.getLogger().info(Security.stripFormatting(msg.replace('&', '\u00A7')));
     }
 
     @Override

@@ -7,6 +7,7 @@ import me.leoko.advancedban.utils.PunishmentType;
 import me.leoko.advancedban.utils.SQLQuery;
 
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.*;
 
@@ -435,14 +436,41 @@ public class PunishmentManager {
      */
     public Punishment getPunishmentFromResultSet(ResultSet rs) throws SQLException {
         return new Punishment(
-                rs.getString("name"),
-                rs.getString("uuid"), rs.getString("reason"),
-                rs.getString("operator"),
-                PunishmentType.valueOf(rs.getString("punishmentType")),
-                rs.getLong("start"),
-                rs.getLong("end"),
-                rs.getString("calculation"),
-                rs.getInt("id"));
+                getString(rs, "name"),
+                getString(rs, "uuid"), getString(rs, "reason"),
+                getString(rs, "operator"),
+                PunishmentType.valueOf(getString(rs, "punishmentType").trim()),
+                getLong(rs, "start"),
+                getLong(rs, "end"),
+                getString(rs, "calculation"),
+                getInt(rs, "id"));
+    }
+
+    private String getString(ResultSet rs, String column) throws SQLException {
+        return rs.getString(resolveColumn(rs, column));
+    }
+
+    private long getLong(ResultSet rs, String column) throws SQLException {
+        return rs.getLong(resolveColumn(rs, column));
+    }
+
+    private int getInt(ResultSet rs, String column) throws SQLException {
+        return rs.getInt(resolveColumn(rs, column));
+    }
+
+    private int resolveColumn(ResultSet rs, String column) throws SQLException {
+        try {
+            return rs.findColumn(column);
+        } catch (SQLException ignored) {
+            ResultSetMetaData metaData = rs.getMetaData();
+            for (int i = 1; i <= metaData.getColumnCount(); i++) {
+                String label = metaData.getColumnLabel(i);
+                if (column.equalsIgnoreCase(label)) {
+                    return i;
+                }
+            }
+            throw ignored;
+        }
     }
 
     /**
