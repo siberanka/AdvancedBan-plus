@@ -17,7 +17,7 @@ This fork keeps the original AdvancedBan workflow familiar while adding current 
 ### Features
 
 - Bukkit, Spigot and Paper support through the Bukkit adapter.
-- Dedicated Folia build with `folia-supported: true` metadata and Folia scheduler integration.
+- Folia support through the Bundle jar with `folia-supported: true` metadata and Folia scheduler integration.
 - BungeeCord and Waterfall-style proxy support.
 - Velocity support with command, login, chat, command mute and event handling.
 - Ban, tempban, IP ban, mute, tempmute, warn, tempwarn, note, kick, history, banlist and check commands.
@@ -43,7 +43,7 @@ This fork keeps the original AdvancedBan workflow familiar while adding current 
 
 - Java runtime: Java 21 required.
 - Bukkit/Spigot/Paper target: Minecraft 1.21.x, built against Spigot API `1.21.11-R0.2-SNAPSHOT` with Bukkit `api-version: 1.21`.
-- Folia: use the dedicated `AdvancedBan-Folia` jar. Scheduler-sensitive work uses Folia async/global/entity scheduler APIs through a runtime bridge.
+- Folia: use the Bundle jar. Scheduler-sensitive work uses Folia async/global/entity scheduler APIs through a runtime bridge.
 - Paper/Folia-style forks: supported when they provide compatible Bukkit/Paper APIs and Java 21 runtime behavior.
 - BungeeCord/Waterfall-style proxies: built against BungeeCord API `1.20-R0.2-SNAPSHOT`.
 - Velocity: built against Velocity API `3.4.0`; Velocity requires at least Java 21.
@@ -111,6 +111,14 @@ Database:
 - LiteBans-format mode is designed for database compatibility. Running multiple punishment plugins against the same live tables should be tested carefully on a staging server.
 - Keep `ErrorLog`, `YamlMaintenance`, command rate limits and HTTP timeouts enabled on production servers.
 
+### Installation
+
+Use the Bundle jar from GitHub releases:
+
+- `AdvancedBan-Bundle-2026.06.29.7-RELEASE.jar`
+
+The Bundle jar is the supported production artifact for Bukkit, Spigot, Paper, Folia, BungeeCord and Velocity. Do not install the module jars from local build folders as production plugins; they are build modules used to assemble the Bundle.
+
 ### Build
 
 ```bash
@@ -125,15 +133,11 @@ mvn clean package "-Djavax.net.ssl.trustStoreType=Windows-ROOT"
 
 Release `2026.06.29.7` was verified with:
 
-- `mvn -pl core test` (`10` tests)
+- `mvn -pl core test` (`12` tests)
 - `mvn clean package "-Djavax.net.ssl.trustStoreType=Windows-ROOT"`
 
-Build outputs:
+Release artifact:
 
-- `bukkit/target/AdvancedBan-Bukkit-2026.06.29.7-RELEASE.jar`
-- `folia/target/AdvancedBan-Folia-2026.06.29.7-RELEASE.jar`
-- `bungee/target/AdvancedBan-Bungee-2026.06.29.7-RELEASE.jar`
-- `velocity/target/AdvancedBan-Velocity-2026.06.29.7-RELEASE.jar`
 - `bundle/target/AdvancedBan-Bundle-2026.06.29.7-RELEASE.jar`
 
 Release page:
@@ -157,7 +161,7 @@ Bu fork, klasik AdvancedBan kullanımını korurken güncel platform desteği, d
 ### Özellikler
 
 - Bukkit, Spigot ve Paper desteği.
-- `folia-supported: true` metadata ve Folia scheduler entegrasyonu içeren ayrı Folia buildi.
+- `folia-supported: true` metadata ve Folia scheduler entegrasyonu içeren Bundle jar üzerinden Folia desteği.
 - BungeeCord ve Waterfall tarzı proxy desteği.
 - Velocity desteği: komut, giriş, chat, komut mute ve event akışları.
 - Ban, tempban, IP ban, mute, tempmute, warn, tempwarn, note, kick, history, banlist ve check komutlari.
@@ -183,7 +187,7 @@ Bu fork, klasik AdvancedBan kullanımını korurken güncel platform desteği, d
 
 - Java runtime: Java 21 gereklidir.
 - Bukkit/Spigot/Paper hedefi: Minecraft 1.21.x, Spigot API `1.21.11-R0.2-SNAPSHOT` ile derlenir ve Bukkit `api-version: 1.21` kullanır.
-- Folia: özel `AdvancedBan-Folia` jarını kullanın. Scheduler hassas işlemler runtime bridge üzerinden Folia async/global/entity scheduler API'lerine taşınmıştır.
+- Folia: Bundle jarını kullanın. Scheduler hassas işlemler runtime bridge üzerinden Folia async/global/entity scheduler API'lerine taşınmıştır.
 - Paper/Folia tarzı forklar: uyumlu Bukkit/Paper API ve Java 21 runtime davranışı sağladıkları sürece desteklenir.
 - BungeeCord/Waterfall tarzi proxyler: BungeeCord API `1.20-R0.2-SNAPSHOT` ile derlenir.
 - Velocity: Velocity API `3.4.0` ile derlenir; Velocity için en az Java 21 gerekir.
@@ -251,6 +255,14 @@ Database:
 - LiteBans-format modu veritabanı uyumluluğu içindir. Aynı canlı tablolara birden fazla ceza eklentisi yazacaksa önce staging sunucuda test edin.
 - Production sunucularda `ErrorLog`, `YamlMaintenance`, komut rate limitleri ve HTTP timeout ayarları açık kalmalıdır.
 
+### Kurulum
+
+GitHub release üzerinden Bundle jarını kullanın:
+
+- `AdvancedBan-Bundle-2026.06.29.7-RELEASE.jar`
+
+Bundle jar; Bukkit, Spigot, Paper, Folia, BungeeCord ve Velocity için desteklenen production artefactıdır. Lokal build klasörlerindeki modül jarlarını production plugin olarak kurmayın; onlar Bundle jarı oluşturmak için kullanılan build modülleridir.
+
 ### Build
 
 ```bash
@@ -265,15 +277,11 @@ mvn clean package "-Djavax.net.ssl.trustStoreType=Windows-ROOT"
 
 `2026.06.29.7` release'i şu kontrollerle doğrulanmıştır:
 
-- `mvn -pl core test` (`10` test)
+- `mvn -pl core test` (`12` test)
 - `mvn clean package "-Djavax.net.ssl.trustStoreType=Windows-ROOT"`
 
-Build çıktıları:
+Release artefactı:
 
-- `bukkit/target/AdvancedBan-Bukkit-2026.06.29.7-RELEASE.jar`
-- `folia/target/AdvancedBan-Folia-2026.06.29.7-RELEASE.jar`
-- `bungee/target/AdvancedBan-Bungee-2026.06.29.7-RELEASE.jar`
-- `velocity/target/AdvancedBan-Velocity-2026.06.29.7-RELEASE.jar`
 - `bundle/target/AdvancedBan-Bundle-2026.06.29.7-RELEASE.jar`
 
 Release sayfası:
