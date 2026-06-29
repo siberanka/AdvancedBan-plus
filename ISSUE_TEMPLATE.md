@@ -1,18 +1,35 @@
-_What version of AdvancedBan (`/AdvancedBan`) are you using?_
- 
- 
-_What kind of server do you have (`Bungeecord/single server`)?_
- 
- 
-_What server version (/version) are you using?_
+# AdvancedBan Plus issue report
 
+Please use the GitHub issue forms under `.github/ISSUE_TEMPLATE` when possible.
 
-_Please provide the EXACT steps required to reproduce the problem..._
+## Required information
+
+- AdvancedBan Plus version:
+- Module/platform: Bukkit/Paper, BungeeCord, Velocity, Bundle, LiteBans API, Simple Voice Chat
+- Server/proxy version (`/version`):
+- Java version (`java -version`):
+- Storage backend: HSQLDB or MySQL/MariaDB
+
+## What happened?
+
+Describe the issue and expected behavior.
+
+## Steps to reproduce
+
 1.
 2.
 3.
 
-_Any error/log post it through [pastebin.com](http://pastebin.com) and link it here. (Also include /plugins/AdvancedBan/logs/latest.log)_
+## Logs
 
+Attach relevant console output, `plugins/AdvancedBan/logs/latest.log`, and `plugins/AdvancedBan/error.log`.
 
-_Add any additional information below._
+## Relevant config
+
+Paste only relevant config/message/layout snippets. Remove passwords, tokens, private IPs and personal data.
+
+## Checklist
+
+- [ ] I tested with the latest AdvancedBan Plus release.
+- [ ] I removed secrets and private data from logs/config.
+- [ ] I included enough information to reproduce the issue.

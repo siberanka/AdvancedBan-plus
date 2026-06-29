@@ -1,0 +1,65 @@
+name: Feature request
+description: Suggest a new feature or improvement.
+title: "[Feature]: "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for planned improvements, compatibility requests and new moderation features.
+        Security vulnerabilities should be reported privately through GitHub Security Advisories.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Bukkit / Spigot / Paper
+        - BungeeCord / Waterfall
+        - Velocity
+        - LiteBans API compatibility
+        - Simple Voice Chat integration
+        - Config / messages / layouts
+        - Database / storage
+        - Security / hardening
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What problem does this solve for production servers?
+      placeholder: "I need this because ..."
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe the behavior, commands, config keys, permissions, events or API shape you expect.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Existing plugins, commands, configs or workarounds you tried.
+    validations:
+      required: false
+  - type: input
+    id: server-context
+    attributes:
+      label: Target server/proxy versions
+      placeholder: "Paper 1.21.x, Velocity 3.4.0, Java 21"
+    validations:
+      required: false
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I checked the latest release and existing issues first.
+          required: true
+        - label: This is not a public security vulnerability report.
+          required: true

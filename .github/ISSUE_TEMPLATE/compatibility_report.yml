@@ -1,0 +1,69 @@
+name: Compatibility report
+description: Report a server fork, proxy, Java, database or plugin compatibility problem.
+title: "[Compatibility]: "
+labels: ["compatibility", "needs-triage"]
+body:
+  - type: input
+    id: plugin-version
+    attributes:
+      label: AdvancedBan Plus version
+      placeholder: "2026.06.29.4"
+    validations:
+      required: true
+  - type: dropdown
+    id: compatibility-area
+    attributes:
+      label: Compatibility area
+      options:
+        - Bukkit / Spigot / Paper fork
+        - BungeeCord / Waterfall fork
+        - Velocity fork
+        - Java runtime
+        - MySQL / MariaDB / HSQLDB
+        - Permissions plugin
+        - Chat / command plugin
+        - Simple Voice Chat
+        - LiteBans API consumer plugin
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment details
+      description: Include `/version`, proxy version, `java -version`, database version and relevant plugin versions.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: failure
+    attributes:
+      label: Compatibility failure
+      description: What does not work, and when does it fail?
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Include startup logs, `latest.log`, `error.log`, and stack traces if present.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: Relevant configuration
+      description: Remove secrets before posting.
+      render: yaml
+    validations:
+      required: false
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I tested with the latest AdvancedBan Plus release.
+          required: true
+        - label: I included exact server/proxy and Java versions.
+          required: true

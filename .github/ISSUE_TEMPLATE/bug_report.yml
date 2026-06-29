@@ -1,0 +1,114 @@
+name: Bug report
+description: Report a reproducible AdvancedBan Plus bug.
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please fill this out carefully so we can reproduce it without guessing.
+        Remove secrets before posting logs or config values.
+  - type: input
+    id: plugin-version
+    attributes:
+      label: AdvancedBan Plus version
+      description: Run `/advancedban` or check the jar/release name.
+      placeholder: "2026.06.29.4"
+    validations:
+      required: true
+  - type: dropdown
+    id: module
+    attributes:
+      label: Module / platform
+      description: Which jar and server side is affected?
+      options:
+        - Bukkit / Spigot / Paper
+        - BungeeCord / Waterfall
+        - Velocity
+        - Bundle
+        - LiteBans API compatibility
+        - Simple Voice Chat integration
+        - Other / unsure
+    validations:
+      required: true
+  - type: input
+    id: server-version
+    attributes:
+      label: Server software and Minecraft/proxy version
+      description: Paste `/version` output or proxy version output.
+      placeholder: "Paper 1.21.11 build ..., Velocity 3.4.0, BungeeCord ..."
+    validations:
+      required: true
+  - type: input
+    id: java-version
+    attributes:
+      label: Java version
+      description: Paste `java -version` or your host panel's Java runtime.
+      placeholder: "Temurin 21.0.x"
+    validations:
+      required: true
+  - type: dropdown
+    id: database
+    attributes:
+      label: Storage backend
+      options:
+        - HSQLDB local
+        - MySQL / MariaDB
+        - Unknown
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the broken behavior and what you expected instead.
+      placeholder: "When I run ..., AdvancedBan ..."
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Exact steps required to reproduce the issue.
+      placeholder: |
+        1. Start server with ...
+        2. Run command ...
+        3. Join with ...
+        4. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and error files
+      description: Attach or paste relevant console output, `plugins/AdvancedBan/logs/latest.log`, and `plugins/AdvancedBan/error.log`.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: Relevant config
+      description: Paste only relevant `config.yml`, `Messages.yml`, `Layouts.yml`, or database settings. Remove passwords, tokens, IPs and private data.
+      render: yaml
+    validations:
+      required: false
+  - type: textarea
+    id: plugins
+    attributes:
+      label: Other plugins / network setup
+      description: List plugins that interact with bans, chat, commands, permissions, voice chat, database, proxy messaging or UUIDs.
+      placeholder: "LuckPerms, Vault, Simple Voice Chat, ViaVersion, ..."
+    validations:
+      required: false
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I tested with the latest AdvancedBan Plus release.
+          required: true
+        - label: I removed secrets, passwords, tokens, private IPs and player personal data from logs/config.
+          required: true
+        - label: I included enough information to reproduce the issue.
+          required: true
