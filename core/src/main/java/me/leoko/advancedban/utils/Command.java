@@ -436,7 +436,7 @@ public enum Command {
 
     ADVANCED_BAN(null,
             ".*",
-            new BasicTabCompleter("help", "reload"),
+            new BasicTabCompleter("help", "reload", "update"),
             input -> {
                 MethodInterface mi = Universal.get().getMethods();
                 Object sender = input.getSender();
@@ -445,6 +445,13 @@ public enum Command {
                         if (Universal.get().hasPerms(sender, "ab.reload")) {
                             mi.loadFiles();
                             mi.sendMessage(sender, "§a§lAdvancedBan §8§l» §7Reloaded!");
+                        } else {
+                            MessageManager.sendMessage(sender, "General.NoPerms", true);
+                        }
+                        return;
+                    } else if (input.getPrimaryData().equals("update")) {
+                        if (Universal.get().hasPerms(sender, "ab.update")) {
+                            Universal.get().requestUpdateCheck(sender);
                         } else {
                             MessageManager.sendMessage(sender, "General.NoPerms", true);
                         }
@@ -494,8 +501,8 @@ public enum Command {
                             mi.sendMessage(sender, "§8» §7See your or a users notes");
                             mi.sendMessage(sender, "§c/check [Name]");
                             mi.sendMessage(sender, "§8» §7Get all information about a user");
-                            mi.sendMessage(sender, "§c/AdvancedBan <reload/help>");
-                            mi.sendMessage(sender, "§8» §7Reloads the plugin or shows help page");
+                            mi.sendMessage(sender, "§c/AdvancedBan <reload/help/update>");
+                            mi.sendMessage(sender, "§8» §7Reloads the plugin, checks updates or shows help page");
                             mi.sendMessage(sender, "§8");
                         } else {
                             MessageManager.sendMessage(sender, "General.NoPerms", true);

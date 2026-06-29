@@ -142,6 +142,11 @@ Disable Prefix: false
 # This is a Bukkit-specific option. It has no meaning on BungeeCord
 Friendly Register Commands: false
 
+# Checks the latest release in https://github.com/siberanka/AdvancedBan-plus and
+# notifies console/admins when a newer date.build release is available.
+UpdateChecker:
+  Enabled: true
+
 # Bukkit/Paper only. If Simple Voice Chat is installed, AdvancedBan cancels
 # microphone packets from muted players so /mute and /tempmute also silence voice.
 VoiceChat:
@@ -163,6 +168,14 @@ Security:
     Enabled: true
     WindowMillis: 1000
     MaxCommands: 6
+
+# Writes stack traces to plugins/AdvancedBan/error.log with bounded rotation.
+# Keep this enabled on production servers; logs are capped to prevent disk abuse.
+ErrorLog:
+  Enabled: true
+  MaxBytes: 1048576
+  Backups: 3
+  MaxEntryChars: 32768
 
 # HikariCP settings. Keep these conservative unless your database is dedicated to punishments.
 Database:

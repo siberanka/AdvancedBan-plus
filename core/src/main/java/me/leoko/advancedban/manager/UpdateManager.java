@@ -112,6 +112,27 @@ public class UpdateManager {
             addMessage("ChangeReason:", "  PageFooter: \"&7Use &e&o/warns %NEXT_PAGE% &7to see the next page\"", -1);
         }
 
+        if (!mi.contains(mi.getMessages(), "Update.Checking")) {
+            try {
+                FileUtils.writeLines(new File(mi.getDataFolder(), "Messages.yml"), "UTF8", Arrays.asList(
+                        "",
+                        "Update:",
+                        "  Checking: \"&7Checking GitHub releases...\"",
+                        "  Disabled: \"&cGitHub update checks are disabled in config.\"",
+                        "  Failed: \"&cCould not check GitHub releases. See error.log for details.\"",
+                        "  UpToDate: \"&aYou are running the latest AdvancedBan Plus version (%CURRENT%).\"",
+                        "  Available: \"&eAdvancedBan Plus %CURRENT% is outdated. Latest: %LATEST%\"",
+                        "  AvailableLink: \"&7Download: %URL%\"",
+                        "  Notification:",
+                        "  - \"%PREFIX% &eA new AdvancedBan Plus release is available.\"",
+                        "  - \"&7Current: &c%CURRENT% &8| &7Latest: &a%LATEST%\"",
+                        "  - \"&7Download: &f%URL%\""
+                ), true);
+            } catch (IOException e) {
+                Universal.get().debugException(e);
+            }
+        }
+
         if (!mi.contains(mi.getMessages(), "UnBan.Notification")) {
             addMessage("UnBan:", "  Notification: \"&e&o%OPERATOR% &7unbanned &c&o%NAME%\"", 1);
             addMessage("UnMute:", "  Notification: \"&e&o%OPERATOR% &7unmuted &c&o%NAME%\"", 1);
@@ -231,6 +252,13 @@ public class UpdateManager {
                         "# This is a Bukkit-specific option. It has no meaning on BungeeCord",
                         "Friendly Register Commands: false"));
             }
+            if (!mi.contains(mi.getConfig(), "UpdateChecker.Enabled")) {
+                lines.addAll(Arrays.asList("",
+                        "# Checks the latest release in https://github.com/siberanka/AdvancedBan-plus and",
+                        "# notifies console/admins when a newer date.build release is available.",
+                        "UpdateChecker:",
+                        "  Enabled: true"));
+            }
             if (!mi.contains(mi.getConfig(), "VoiceChat.MuteIntegration.Enabled")) {
                 lines.addAll(Arrays.asList("",
                         "# Bukkit/Paper only. If Simple Voice Chat is installed, AdvancedBan cancels",
@@ -238,6 +266,16 @@ public class UpdateManager {
                         "VoiceChat:",
                         "  MuteIntegration:",
                         "    Enabled: true"));
+            }
+            if (!mi.contains(mi.getConfig(), "ErrorLog.Enabled")) {
+                lines.addAll(Arrays.asList("",
+                        "# Writes stack traces to plugins/AdvancedBan/error.log with bounded rotation.",
+                        "# Keep this enabled on production servers; logs are capped to prevent disk abuse.",
+                        "ErrorLog:",
+                        "  Enabled: true",
+                        "  MaxBytes: 1048576",
+                        "  Backups: 3",
+                        "  MaxEntryChars: 32768"));
             }
             FileUtils.writeLines(file, lines);
         } catch (IOException exc) {

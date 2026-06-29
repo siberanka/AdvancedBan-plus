@@ -31,7 +31,7 @@ public final class VoicechatHook {
             Universal.get().debugException(ex);
         } catch (LinkageError ex) {
             Universal.get().log("&cFailed to hook Simple Voice Chat safely; voice mute integration disabled.");
-            Universal.get().debug(ex.getMessage());
+            Universal.get().debugThrowable(ex);
         }
     }
 }

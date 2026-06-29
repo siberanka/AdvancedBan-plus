@@ -11,6 +11,18 @@ General:
   TimeLayoutS: "%S% seconds"
   FailedFetch: "&cCould not fetch the UUID of %NAME%! See console for details."
 
+Update:
+  Checking: "&7Checking GitHub releases..."
+  Disabled: "&cGitHub update checks are disabled in config."
+  Failed: "&cCould not check GitHub releases. See error.log for details."
+  UpToDate: "&aYou are running the latest AdvancedBan Plus version (%CURRENT%)."
+  Available: "&eAdvancedBan Plus %CURRENT% is outdated. Latest: %LATEST%"
+  AvailableLink: "&7Download: %URL%"
+  Notification:
+  - "%PREFIX% &eA new AdvancedBan Plus release is available."
+  - "&7Current: &c%CURRENT% &8| &7Latest: &a%LATEST%"
+  - "&7Download: &f%URL%"
+
 
 Ban:
   Usage: "&cUsage &8» &7&o/ban (-s) [Name] [Reason/@Layout]"

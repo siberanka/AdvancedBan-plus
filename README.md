@@ -2,7 +2,7 @@
 
 Modernized AdvancedBan build for Bukkit/Spigot/Paper, BungeeCord and Velocity networks.
 
-Version: `2026.06.29.2`
+Version: `2026.06.29.3`
 Authors: Leoko, siberanka
 License: GPL-3.0
 
@@ -20,6 +20,8 @@ This fork adds:
 - LiteBans API compatibility classes behind `litebans-api-support: false`.
 - Modern bStats API usage for Bukkit/Bungee builds.
 - Simple Voice Chat mute integration on Bukkit/Paper: `/mute` and `/tempmute` cancel outgoing microphone packets when Simple Voice Chat is installed.
+- GitHub release update checks against `siberanka/AdvancedBan-plus`, with `/advancedban update` and admin notifications for newer releases.
+- Bounded `error.log` stack-trace logging in the plugin folder for production diagnostics without unbounded disk growth.
 
 ## Platforms
 
@@ -29,7 +31,7 @@ This fork adds:
 
 ## Runtime
 
-AdvancedBan Plus `2026.06.29.2` is built for Java 21. This follows the modern Minecraft server ecosystem in 2026 and allows the project to use current dependency lines such as HikariCP 7.x, JUnit 6.x and current platform APIs.
+AdvancedBan Plus `2026.06.29.3` is built for Java 21. This follows the modern Minecraft server ecosystem in 2026 and allows the project to use current dependency lines such as HikariCP 7.x, JUnit 6.x and current platform APIs.
 
 ## Configuration
 
@@ -37,6 +39,9 @@ New default options in `config.yml`:
 
 ```yaml
 litebans-api-support: false
+
+UpdateChecker:
+  Enabled: true
 
 VoiceChat:
   MuteIntegration:
@@ -53,6 +58,12 @@ Security:
     WindowMillis: 1000
     MaxCommands: 6
 
+ErrorLog:
+  Enabled: true
+  MaxBytes: 1048576
+  Backups: 3
+  MaxEntryChars: 32768
+
 Database:
   MaximumPoolSize: 10
   MinimumIdle: 1
@@ -64,6 +75,10 @@ Database:
 `litebans-api-support` exposes compatible `litebans.api.Database`, `Events`, `Entry`, `PlayerProvider` and `RandomID` classes for plugins that query LiteBans-style ban/mute/warn state. It is disabled by default to avoid surprising behavior on networks that also run LiteBans.
 
 `VoiceChat.MuteIntegration.Enabled` is Bukkit/Paper-only. When Simple Voice Chat is installed, AdvancedBan registers a voicechat API plugin and cancels microphone packets from actively muted players. If Simple Voice Chat is not installed, the hook is not loaded.
+
+`UpdateChecker.Enabled` checks the latest GitHub release from `https://github.com/siberanka/AdvancedBan-plus/releases/latest`. `/advancedban update` can be used by users with `ab.update`, while startup notifications are sent to online users with `ab.update.notify`.
+
+`ErrorLog` writes stack traces to `plugins/AdvancedBan/error.log` and rotates bounded backups (`error.log.1`, `error.log.2`, ...). Stack entries are size-capped and JNDI-style payload text is neutralized before writing.
 
 ## Build
 
@@ -77,11 +92,11 @@ On Windows hosts where the JDK trust store does not include the system certifica
 mvn clean package "-Djavax.net.ssl.trustStoreType=Windows-ROOT"
 ```
 
-Release `2026.06.29.2` was verified with `mvn test` and `mvn clean package` using the Windows root trust-store flag in this workspace.
+Release `2026.06.29.3` was verified with `mvn test` and `mvn clean package` using the Windows root trust-store flag in this workspace.
 
 Build outputs:
 
-- `bukkit/target/AdvancedBan-Bukkit-2026.06.29.2-RELEASE.jar`
-- `bungee/target/AdvancedBan-Bungee-2026.06.29.2-RELEASE.jar`
-- `velocity/target/AdvancedBan-Velocity-2026.06.29.2-RELEASE.jar`
-- `bundle/target/AdvancedBan-Bundle-2026.06.29.2-RELEASE.jar`
+- `bukkit/target/AdvancedBan-Bukkit-2026.06.29.3-RELEASE.jar`
+- `bungee/target/AdvancedBan-Bungee-2026.06.29.3-RELEASE.jar`
+- `velocity/target/AdvancedBan-Velocity-2026.06.29.3-RELEASE.jar`
+- `bundle/target/AdvancedBan-Bundle-2026.06.29.3-RELEASE.jar`

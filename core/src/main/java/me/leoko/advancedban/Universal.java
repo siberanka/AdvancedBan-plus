@@ -3,6 +3,7 @@ package me.leoko.advancedban;
 import com.google.gson.Gson;
 import me.leoko.advancedban.manager.*;
 import me.leoko.advancedban.utils.Command;
+import me.leoko.advancedban.utils.GitHubUpdateChecker;
 import me.leoko.advancedban.utils.InterimData;
 import me.leoko.advancedban.utils.Punishment;
 import me.leoko.advancedban.utils.Security;
@@ -18,8 +19,10 @@ import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
@@ -40,6 +43,7 @@ public class Universal {
     private final Map<String, String> ips = new ConcurrentHashMap<>();
     private MethodInterface mi;
     private LogManager logManager;
+    private volatile GitHubUpdateChecker.Result lastUpdateCheck;
 
     private static boolean redis = false;
 
@@ -88,13 +92,9 @@ public class Universal {
             }
         }
 
-        String upt = "You have the newest version";
-        String response = getFromURL("https://api.spigotmc.org/legacy/update.php?resource=8695");
-        if (response == null) {
-            upt = "Failed to check for updates :(";
-        } else if ((!mi.getVersion().startsWith(response))) {
-            upt = "There is a new version available! [" + response + "]";
-        }
+        String upt = mi.getBoolean(mi.getConfig(), "UpdateChecker.Enabled", true)
+                ? "GitHub release check scheduled"
+                : "GitHub release check disabled";
 
         if (mi.getBoolean(mi.getConfig(), "DetailedEnableMessage", true)) {
             mi.log("\n \n&8[]=====[&7Enabling AdvancedBan&8]=====[]&r"
@@ -104,7 +104,7 @@ public class Universal {
                     + "\n&8|   &cVersion: &7" + mi.getVersion() + "&r"
                     + "\n&8|   &cStorage: &7" + (DatabaseManager.get().isUseMySQL() ? "MySQL (external)" : "HSQLDB (local)") + "&r"
                     + "\n&8| &cSupport:&r"
-                    + "\n&8|   &cGithub: &7https://github.com/DevLeoko/AdvancedBan/issues &r"
+                    + "\n&8|   &cGithub: &7https://github.com/siberanka/AdvancedBan-plus/issues &r"
                     + "\n&8|   &cDiscord: &7https://discord.gg/ycDG6rS &r"
                     + "\n&8| &cTwitter: &7@LeokoGar&r"
                     + "\n&8| &cUpdate:&r"
@@ -113,6 +113,10 @@ public class Universal {
         } else {
             mi.log("&cEnabling AdvancedBan on Version &7&r" + mi.getVersion());
             mi.log("&cCoded by &7Leoko &8| &7Twitter: @LeokoGar&r");
+        }
+
+        if (!mi.isUnitTesting()) {
+            requestUpdateCheck(null);
         }
     }
 
@@ -131,7 +135,7 @@ public class Universal {
                     + "\n&8|   &cVersion: &7" + getMethods().getVersion()
                     + "\n&8|   &cStorage: &7" + (DatabaseManager.get().isUseMySQL() ? "MySQL (external)" : "HSQLDB (local)")
                     + "\n&8| &cSupport:"
-                    + "\n&8|   &cGithub: &7https://github.com/DevLeoko/AdvancedBan/issues"
+                    + "\n&8|   &cGithub: &7https://github.com/siberanka/AdvancedBan-plus/issues"
                     + "\n&8|   &cDiscord: &7https://discord.gg/ycDG6rS"
                     + "\n&8| &cTwitter: &7@LeokoGar"
                     + "\n&8[]================================[]&r\n ");
@@ -169,6 +173,92 @@ public class Universal {
 
     public Gson getGson() {
         return gson;
+    }
+
+    public GitHubUpdateChecker.Result getLastUpdateCheck() {
+        return lastUpdateCheck;
+    }
+
+    public void requestUpdateCheck(Object requester) {
+        if (!mi.getBoolean(mi.getConfig(), "UpdateChecker.Enabled", true)) {
+            if (requester != null) {
+                sendUpdateMessage(requester, "Update.Disabled", "&cGitHub update checks are disabled in config.");
+            }
+            return;
+        }
+        if (requester != null) {
+            sendUpdateMessage(requester, "Update.Checking", "&7Checking GitHub releases...");
+        }
+        mi.runAsync(() -> {
+            try {
+                GitHubUpdateChecker.Result result = new GitHubUpdateChecker().check(mi.getVersion());
+                lastUpdateCheck = result;
+                if (requester != null) {
+                    sendUpdateResult(requester, result);
+                } else if (result.isUpdateAvailable()) {
+                    log("&eAdvancedBan Plus update available: &7" + result.getCurrentVersion()
+                            + " &8-> &a" + result.getLatestVersion());
+                    log("&eDownload: &7" + result.getReleaseUrl());
+                    mi.notify("ab.update.notify", getUpdateNotification(result));
+                } else {
+                    debug("AdvancedBan Plus is up to date according to GitHub releases.");
+                }
+            } catch (Exception ex) {
+                if (requester != null) {
+                    sendUpdateMessage(requester, "Update.Failed", "&cCould not check GitHub releases. See error.log for details.");
+                } else {
+                    log("&cFailed to check GitHub releases. See error.log for details.");
+                }
+                debugException(ex);
+            }
+        });
+    }
+
+    private void sendUpdateResult(Object receiver, GitHubUpdateChecker.Result result) {
+        if (result.isUpdateAvailable()) {
+            sendUpdateMessage(receiver, "Update.Available",
+                    "&eAdvancedBan Plus %CURRENT% is outdated. Latest: %LATEST%",
+                    "CURRENT", result.getCurrentVersion(),
+                    "LATEST", result.getLatestVersion(),
+                    "URL", result.getReleaseUrl());
+            sendUpdateMessage(receiver, "Update.AvailableLink",
+                    "&7Download: %URL%",
+                    "CURRENT", result.getCurrentVersion(),
+                    "LATEST", result.getLatestVersion(),
+                    "URL", result.getReleaseUrl());
+        } else {
+            sendUpdateMessage(receiver, "Update.UpToDate",
+                    "&aYou are running the latest AdvancedBan Plus version (%CURRENT%).",
+                    "CURRENT", result.getCurrentVersion(),
+                    "LATEST", result.getLatestVersion(),
+                    "URL", result.getReleaseUrl());
+        }
+    }
+
+    private List<String> getUpdateNotification(GitHubUpdateChecker.Result result) {
+        if (mi.contains(mi.getMessages(), "Update.Notification")) {
+            return MessageManager.getLayout(mi.getMessages(), "Update.Notification",
+                    "CURRENT", result.getCurrentVersion(),
+                    "LATEST", result.getLatestVersion(),
+                    "URL", result.getReleaseUrl());
+        }
+        return Arrays.asList(
+                "\u00A7eAdvancedBan Plus " + result.getCurrentVersion() + " is outdated. Latest: " + result.getLatestVersion(),
+                "\u00A77Download: " + result.getReleaseUrl());
+    }
+
+    private void sendUpdateMessage(Object receiver, String path, String fallback, String... parameters) {
+        String message = mi.contains(mi.getMessages(), path)
+                ? MessageManager.getMessage(path, true, parameters)
+                : replaceParameters(fallback, parameters).replace('&', '\u00A7');
+        mi.sendMessage(receiver, message);
+    }
+
+    private String replaceParameters(String message, String... parameters) {
+        for (int i = 0; i < parameters.length - 1; i += 2) {
+            message = message.replace("%" + parameters[i] + "%", parameters[i + 1]);
+        }
+        return message;
     }
 
     /**
@@ -383,10 +473,18 @@ public class Universal {
     }
 
     public void debugException(Exception exc) {
+        debugThrowable(exc);
+    }
+
+    public void debugThrowable(Throwable exc) {
+        if (exc == null) {
+            return;
+        }
         StringWriter sw = new StringWriter();
         PrintWriter pw = new PrintWriter(sw);
         exc.printStackTrace(pw);
         debug(sw.toString());
+        writeErrorLog(sw.toString());
     }
 
     /**
@@ -418,7 +516,9 @@ public class Universal {
                 System.out.print("Error message" + ex.getMessage());
             }
         } else {
-            logManager.checkLastLog(false);
+            if (logManager != null) {
+                logManager.checkLastLog(false);
+            }
         }
         try {
             FileUtils.writeStringToFile(debugFile, "[" + new SimpleDateFormat("HH:mm:ss").format(System.currentTimeMillis()) + "] " + mi.clearFormatting(Security.sanitizeForLog(String.valueOf(msg))) + "\n", "UTF8", true);
@@ -426,5 +526,47 @@ public class Universal {
             System.out.print("An error has occurred writing to 'latest.log' file.");
             System.out.print(ex.getMessage());
         }
+    }
+
+    private void writeErrorLog(String stackTrace) {
+        if (!Security.getBoolean("ErrorLog.Enabled", true) || mi == null || mi.getDataFolder() == null) {
+            return;
+        }
+        int maxEntryChars = Security.getInt("ErrorLog.MaxEntryChars", 32768);
+        String safeStackTrace = Security.limit(stackTrace.replace("${", "$ {").replace('\r', ' '), maxEntryChars);
+        String entry = "[" + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(System.currentTimeMillis()) + "] "
+                + safeStackTrace + "\n";
+        File errorFile = new File(mi.getDataFolder(), "error.log");
+        File parent = errorFile.getParentFile();
+        if (parent != null && !parent.exists()) {
+            //noinspection ResultOfMethodCallIgnored
+            parent.mkdirs();
+        }
+        try {
+            rotateErrorLogIfNeeded(errorFile, entry.length());
+            FileUtils.writeStringToFile(errorFile, entry, "UTF8", true);
+        } catch (IOException ex) {
+            System.out.print("An error has occurred writing to 'error.log'.");
+            System.out.print(ex.getMessage());
+        }
+    }
+
+    private void rotateErrorLogIfNeeded(File errorFile, int pendingBytes) throws IOException {
+        long maxBytes = Math.max(64 * 1024L, Security.getInt("ErrorLog.MaxBytes", 1024 * 1024));
+        if (!errorFile.exists() || errorFile.length() + pendingBytes <= maxBytes) {
+            return;
+        }
+        int backups = Math.max(1, Math.min(10, Security.getInt("ErrorLog.Backups", 3)));
+        File oldest = new File(errorFile.getParentFile(), "error.log." + backups);
+        Files.deleteIfExists(oldest.toPath());
+        for (int i = backups - 1; i >= 1; i--) {
+            File source = new File(errorFile.getParentFile(), "error.log." + i);
+            if (source.exists()) {
+                Files.move(source.toPath(), new File(errorFile.getParentFile(), "error.log." + (i + 1)).toPath(),
+                        StandardCopyOption.REPLACE_EXISTING);
+            }
+        }
+        Files.move(errorFile.toPath(), new File(errorFile.getParentFile(), "error.log.1").toPath(),
+                StandardCopyOption.REPLACE_EXISTING);
     }
 }

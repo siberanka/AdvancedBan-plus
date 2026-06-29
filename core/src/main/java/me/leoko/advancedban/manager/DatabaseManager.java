@@ -143,7 +143,7 @@ public class DatabaseManager {
     		Universal.get().log(
    					"An unexpected error has occurred executing an Statement in the database\n"
    							+ "Please check the plugins/AdvancedBan/logs/latest.log file and report this "
-    						+ "error in: https://github.com/DevLeoko/AdvancedBan/issues"
+                            + "error in: https://github.com/siberanka/AdvancedBan-plus/issues"
     				);
     		Universal.get().debug("Query: \n" + sql);
     		Universal.get().debugSqlException(ex);
@@ -152,7 +152,7 @@ public class DatabaseManager {
                     "An unexpected error has occurred connecting to the database\n"
                             + "Check if your MySQL data is correct and if your MySQL-Server is online\n"
                             + "Please check the plugins/AdvancedBan/logs/latest.log file and report this "
-                            + "error in: https://github.com/DevLeoko/AdvancedBan/issues"
+                            + "error in: https://github.com/siberanka/AdvancedBan-plus/issues"
             );
             Universal.get().debugException(ex);
         }
