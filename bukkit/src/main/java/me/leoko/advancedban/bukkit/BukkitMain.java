@@ -54,10 +54,10 @@ public class BukkitMain extends JavaPlugin {
             Method register = hookClass.getMethod("register", BukkitMain.class);
             register.invoke(null, this);
         } catch (ReflectiveOperationException ex) {
-            Universal.get().log("&cFailed to hook Simple Voice Chat safely; voice mute integration disabled.");
+            Universal.get().logMessage("Console.VoiceChatHookFailed", "&cFailed to hook Simple Voice Chat safely; voice mute integration disabled.");
             Universal.get().debugException(ex);
         } catch (LinkageError ex) {
-            Universal.get().log("&cFailed to hook Simple Voice Chat safely; voice mute integration disabled.");
+            Universal.get().logMessage("Console.VoiceChatHookFailed", "&cFailed to hook Simple Voice Chat safely; voice mute integration disabled.");
             Universal.get().debugThrowable(ex);
         }
     }

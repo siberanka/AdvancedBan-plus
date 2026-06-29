@@ -66,14 +66,14 @@ public class Punishment {
 
     public void create(boolean silent) {
         if (id != -1) {
-            Universal.get().log("!! Failed! AB tried to overwrite the punishment:");
-            Universal.get().log("!! Failed at: " + toString());
+            Universal.get().logMessage("Console.PunishmentOverwriteBlocked", "&cAdvancedBan blocked an attempt to overwrite an existing punishment.");
+            Universal.get().debug("Failed at: " + toString());
             return;
         }
 
         if (uuid == null) {
-            Universal.get().log("!! Failed! AB has not saved the " + getType().getName() + " because there is no fetched UUID");
-            Universal.get().log("!! Failed at: " + toString());
+            Universal.get().logMessage("Console.PunishmentMissingUuid", "&cAdvancedBan did not save %TYPE% because there is no fetched UUID.", "TYPE", getType().getName());
+            Universal.get().debug("Failed at: " + toString());
             return;
         }
 
@@ -88,8 +88,8 @@ public class Punishment {
                     if (rs.next()) {
                         id = rs.getInt("id");
                     } else {
-                        Universal.get().log("!! Not able to update ID of punishment! Please restart the server to resolve this issue!");
-                        Universal.get().log("!! Failed at: " + toString());
+                        Universal.get().logMessage("Console.PunishmentIdUpdateFailed", "&cCould not update punishment ID. Please restart the server to resolve this issue.");
+                        Universal.get().debug("Failed at: " + toString());
                     }
                 }
             } catch (SQLException ex) {
@@ -142,7 +142,7 @@ public class Punishment {
                         .replace("%REASON%", Security.sanitizeCommandPlaceholder(getReason()));
                 mi.runSync(() -> {
                     mi.executeCommand(finalCmd);
-                    Universal.get().log("Executing command: " + finalCmd);
+                    Universal.get().logMessage("Console.WarnActionExecuted", "Executing command: %COMMAND%", "COMMAND", finalCmd);
                 });
             }
         }
@@ -179,13 +179,13 @@ public class Punishment {
 
     public void delete(String who, boolean massClear, boolean removeCache) {
         if (getType() == PunishmentType.KICK) {
-            Universal.get().log("!! Failed deleting! You are not able to delete Kicks!");
+            Universal.get().logMessage("Console.PunishmentDeleteKickBlocked", "&cFailed deleting: kicks cannot be deleted.");
             return;
         }
 
         if (id == -1) {
-            Universal.get().log("!! Failed deleting! The Punishment is not created yet!");
-            Universal.get().log("!! Failed at: " + toString());
+            Universal.get().logMessage("Console.PunishmentDeleteNotCreated", "&cFailed deleting: the punishment is not created yet.");
+            Universal.get().debug("Failed at: " + toString());
             return;
         }
 
@@ -225,7 +225,7 @@ public class Punishment {
     }
 
     public String getDuration(boolean fromStart) {
-        String duration = "permanent";
+        String duration = MessageManager.getMessageOrDefault("General.Permanent", "permanent");
         if (getType().isTemp()) {
             long diff = ceilDiv(getEnd() - (fromStart ? start : TimeManager.getTime()), 1000L);
             if (diff > 60 * 60 * 24) {

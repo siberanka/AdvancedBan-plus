@@ -73,7 +73,7 @@ public class PunishmentManager {
 
         } catch (SQLException ex) {
         	Universal universal = universal();
-            universal.log("An error has occurred loading the punishments from the database.");
+            universal.logMessage("Console.PunishmentLoadFailed", "An error has occurred loading the punishments from the database.");
             universal.debugSqlException(ex);
             return null;
         }
@@ -147,7 +147,7 @@ public class PunishmentManager {
                 }
             } catch (SQLException ex) {
             	Universal universal = universal();
-                universal.log("An error has occurred getting the punishments for " + target);
+                universal.logMessage("Console.PunishmentGetForTargetFailed", "An error has occurred getting the punishments for %TARGET%.", "TARGET", target);
                 universal.debugSqlException(ex);
             }
         }
@@ -177,7 +177,7 @@ public class PunishmentManager {
             rs.close();
         } catch (SQLException ex) {
         	Universal universal = universal();
-            universal.log("An error has occurred executing a query in the database.");
+            universal.logMessage("Console.PunishmentQueryFailed", "An error has occurred executing a query in the database.");
             universal.debug("Query: \n" + sqlQuery);
             universal.debugSqlException(ex);
         }
@@ -209,7 +209,7 @@ public class PunishmentManager {
             }
         } catch (SQLException ex) {
         	Universal universal = universal();
-            universal.log("An error has occurred getting a punishment by his id.");
+            universal.logMessage("Console.PunishmentGetByIdFailed", "An error has occurred getting a punishment by id.");
             universal.debug("Punishment id: '" + id + "'");
             universal.debugSqlException(ex);
         }
@@ -233,7 +233,7 @@ public class PunishmentManager {
             }
         } catch (SQLException ex) {
             Universal universal = universal();
-            universal.log("An error has occurred getting a history punishment by his id.");
+            universal.logMessage("Console.PunishmentHistoryGetByIdFailed", "An error has occurred getting a history punishment by id.");
             universal.debug("Punishment id: '" + id + "'");
             universal.debugSqlException(ex);
         }
@@ -378,7 +378,9 @@ public class PunishmentManager {
 
         } catch (SQLException ex) {
         	Universal universal = universal();
-            universal.log("An error has occurred getting the level for the layout '" + layout + "' for '" + uuid + "'");
+            universal.logMessage("Console.PunishmentCalculationLevelFailed",
+                    "An error has occurred getting the level for layout %LAYOUT% and uuid %UUID%.",
+                    "LAYOUT", layout, "UUID", uuid);
             universal.debugSqlException(ex);
         }
         return i;

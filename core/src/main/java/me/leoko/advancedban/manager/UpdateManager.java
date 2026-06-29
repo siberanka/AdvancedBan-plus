@@ -36,6 +36,10 @@ public class UpdateManager {
 
         if (mi.isUnitTesting()) return;
 
+        if (YamlMaintenanceManager.get().maintain()) {
+            mi.loadFiles();
+        }
+
         if (!mi.contains(mi.getMessages(), "UnNote.Usage")) {
             try {
                 addMessage("Check:", "  Note: \"&cNotes &8» &7%COUNT%\"", 1);

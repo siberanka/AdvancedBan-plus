@@ -176,7 +176,7 @@ public class BukkitMethods implements MethodInterface {
                     return tabCompleter.onTabComplete(commandSender, args);
                 });
         } else {
-            System.out.println("AdvancedBan >> Failed to register command " + cmd);
+            Universal.get().logMessage("Console.CommandRegistrationFailed", "&cFailed to register command %COMMAND%.", "COMMAND", cmd);
         }
     }
 
@@ -306,7 +306,8 @@ public class BukkitMethods implements MethodInterface {
         try {
             return ((JSONObject) new JSONParser().parse(json)).get(key).toString();
         } catch (ParseException | IOException e) {
-            System.out.println("Error -> " + e.getMessage());
+            Universal.get().logMessage("Console.JsonParseFailed", "&cFailed to parse JSON response.");
+            Universal.get().debugException(e instanceof Exception ? (Exception) e : new RuntimeException(e));
             return null;
         }
     }

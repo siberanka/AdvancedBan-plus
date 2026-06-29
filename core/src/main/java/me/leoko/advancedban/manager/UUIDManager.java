@@ -85,24 +85,26 @@ public class UUIDManager {
         try {
             uuid = askAPI(mi.getString(mi.getConfig(), "UUID-Fetcher.REST-API.URL"), name, mi.getString(mi.getConfig(), "UUID-Fetcher.REST-API.Key"));
         } catch (IOException e) {
-            System.out.println("Error -> " + e.getMessage());
-            System.out.println("!! Failed fetching UUID of " + name);
-            System.out.println("!! Could not connect to REST-API under " + mi.getString(mi.getConfig(), "UUID-Fetcher.REST-API.URL"));
+            Universal.get().logMessage("Console.UUIDFetchFailed", "&cFailed fetching UUID of %NAME%.",
+                    "NAME", name, "URL", mi.getString(mi.getConfig(), "UUID-Fetcher.REST-API.URL"), "KEY", "");
+            Universal.get().debugException(e);
         }
 
         if (uuid == null) {
-            System.out.println("Trying to fetch UUID form BackUp-API...");
+            Universal.get().debug(MessageManager.getMessageOrDefault("Console.UUIDTryingBackup", "Trying to fetch UUID from backup API."));
             try {
                 uuid = askAPI(mi.getString(mi.getConfig(), "UUID-Fetcher.BackUp-API.URL"), name, mi.getString(mi.getConfig(), "UUID-Fetcher.BackUp-API.Key"));
             } catch (IOException e) {
-                System.out.println("!! Failed fetching UUID of " + name);
-                System.out.println("!! Could not connect to REST-API under " + mi.getString(mi.getConfig(), "UUID-Fetcher.BackUp-API.URL"));
+                Universal.get().logMessage("Console.UUIDFetchFailed", "&cFailed fetching UUID of %NAME%.",
+                        "NAME", name, "URL", mi.getString(mi.getConfig(), "UUID-Fetcher.BackUp-API.URL"), "KEY", "");
+                Universal.get().debugException(e);
             }
         }
 
         if (uuid == null) {
-            System.out.println("!! !! Warning we have not been able to fetch the UUID of the Player " + name);
-            System.out.println("!! Make sure that the name is spelled correctly and if it is change your UUID-Fetcher settings!");
+            Universal.get().logMessage("Console.UUIDFetchWarning",
+                    "&eCould not fetch UUID for %NAME%. Check spelling and UUID-Fetcher settings.",
+                    "NAME", name, "URL", "", "KEY", "");
         }
 
         return uuid;
@@ -236,9 +238,10 @@ public class UUIDManager {
         String uuid = mi.parseJSON(new InputStreamReader(request.getInputStream()), key);
 
         if (uuid == null) {
-            System.out.println("!! Failed fetching UUID of " + name);
-            System.out.println("!! Could not find key '" + key + "' in the servers response");
-            System.out.println("!! Response: " + request.getResponseMessage());
+            Universal.get().logMessage("Console.UUIDMissingKey",
+                    "&cCould not find key '%KEY%' while fetching UUID of %NAME%.",
+                    "NAME", name, "URL", url, "KEY", key);
+            Universal.get().debug("UUID response message: " + request.getResponseMessage());
         } else {
             activeUUIDs.put(name, uuid);
         }

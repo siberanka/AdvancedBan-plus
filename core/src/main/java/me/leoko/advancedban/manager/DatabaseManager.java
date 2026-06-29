@@ -53,7 +53,7 @@ public class DatabaseManager {
         try {
             dataSource = new DynamicDataSource(useMySQL).generateDataSource();
         } catch (ClassNotFoundException ex) {
-            Universal.get().log("§cERROR: Failed to configure data source!");
+            Universal.get().logMessage("Console.DatabaseConfigureFailed", "&cERROR: Failed to configure data source!");
             Universal.get().debug(ex.getMessage());
             return;
         }
@@ -73,7 +73,7 @@ public class DatabaseManager {
             try(Connection connection = dataSource.getConnection(); final PreparedStatement statement = connection.prepareStatement("SHUTDOWN")){
                 statement.execute();
             }catch (SQLException | NullPointerException exc){
-                Universal.get().log("An unexpected error has occurred turning off the database");
+                Universal.get().logMessage("Console.DatabaseShutdownFailed", "An unexpected error has occurred turning off the database");
                 Universal.get().debugException(exc);
             }
         }
@@ -124,7 +124,7 @@ public class DatabaseManager {
 
     private synchronized ResultSet executeStatement(String sql, boolean result, Object... parameters) {
         if (dataSource == null || dataSource.isClosed()) {
-            Universal.get().log("Database is not available; statement skipped.");
+            Universal.get().logMessage("Console.DatabaseUnavailable", "Database is not available; statement skipped.");
             return null;
         }
     	try (Connection connection = dataSource.getConnection(); PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -140,20 +140,13 @@ public class DatabaseManager {
     		}
    			statement.execute();
     	} catch (SQLException ex) {
-    		Universal.get().log(
-   					"An unexpected error has occurred executing an Statement in the database\n"
-   							+ "Please check the plugins/AdvancedBan/logs/latest.log file and report this "
-                            + "error in: https://github.com/siberanka/AdvancedBan-plus/issues"
-    				);
+            Universal.get().logMessage("Console.DatabaseStatementFailed",
+                    "An unexpected error has occurred executing a statement in the database. Please check latest.log/error.log and report this at https://github.com/siberanka/AdvancedBan-plus/issues");
     		Universal.get().debug("Query: \n" + sql);
     		Universal.get().debugSqlException(ex);
        	} catch (NullPointerException ex) {
-            Universal.get().log(
-                    "An unexpected error has occurred connecting to the database\n"
-                            + "Check if your MySQL data is correct and if your MySQL-Server is online\n"
-                            + "Please check the plugins/AdvancedBan/logs/latest.log file and report this "
-                            + "error in: https://github.com/siberanka/AdvancedBan-plus/issues"
-            );
+            Universal.get().logMessage("Console.DatabaseConnectionFailed",
+                    "An unexpected error has occurred connecting to the database. Check your MySQL data/server and report this at https://github.com/siberanka/AdvancedBan-plus/issues");
             Universal.get().debugException(ex);
         }
         return null;

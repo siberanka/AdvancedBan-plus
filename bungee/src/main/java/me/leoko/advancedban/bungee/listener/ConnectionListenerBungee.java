@@ -3,6 +3,7 @@ package me.leoko.advancedban.bungee.listener;
 import com.imaginarycode.minecraft.redisbungee.RedisBungee;
 import me.leoko.advancedban.Universal;
 import me.leoko.advancedban.bungee.BungeeMain;
+import me.leoko.advancedban.manager.MessageManager;
 import me.leoko.advancedban.manager.PunishmentManager;
 import me.leoko.advancedban.manager.UUIDManager;
 import net.md_5.bungee.api.ProxyServer;
@@ -60,11 +61,10 @@ public class ConnectionListenerBungee implements Listener {
         Universal.get().getMethods().scheduleAsync(() -> {
             if (event.getPlayer().getName().equalsIgnoreCase("Leoko")) {
                 if (Universal.get().broadcastLeoko()) {
-                    ProxyServer.getInstance().broadcast("");
-                    ProxyServer.getInstance().broadcast("§c§lAdvancedBan §8§l» §7My creator §c§oLeoko §7just joined the game ^^");
-                    ProxyServer.getInstance().broadcast("");
+                    MessageManager.getLayout(Universal.get().getMethods().getMessages(), "Broadcast.CreatorJoin")
+                            .forEach(ProxyServer.getInstance()::broadcast);
                 } else {
-                    event.getPlayer().sendMessage("§c§lAdvancedBan v2 §8§l» §cHey Leoko we are using your Plugin (NO-BC)");
+                    MessageManager.sendMessage(event.getPlayer(), "Broadcast.CreatorPrivate", false);
                 }
             }
         }, 20);

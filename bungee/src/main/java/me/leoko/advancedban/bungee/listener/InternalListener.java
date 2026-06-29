@@ -75,7 +75,7 @@ public class InternalListener implements Listener {
                             punishment.get("calculation") != null ? punishment.get("calculation").getAsString() : null,
                             -1
                     ).create(punishment.get("silent") != null && punishment.get("silent").getAsBoolean());
-                    universal.log("A punishment was created using PluginMessaging listener.");
+                    universal.logMessage("Console.PluginMessagePunishmentCreated", "A punishment was created using PluginMessaging listener.");
                     universal.debug(punishment.toString());
                     break;
                 default:
@@ -83,7 +83,7 @@ public class InternalListener implements Listener {
                     break;
             }
         } catch (JsonSyntaxException | IllegalArgumentException | NullPointerException | IllegalStateException ex) {
-            universal.log("An exception as occurred while reading a punishment from plugin messaging channel.");
+            universal.logMessage("Console.PluginMessagePunishmentFailed", "An exception occurred while reading a punishment from plugin messaging channel.");
             universal.debugException(ex);
         }
     }

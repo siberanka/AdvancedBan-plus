@@ -2,7 +2,7 @@
 
 Modernized AdvancedBan build for Bukkit/Spigot/Paper, BungeeCord and Velocity networks.
 
-Version: `2026.06.29.3`
+Version: `2026.06.29.4`
 Authors: Leoko, siberanka
 License: GPL-3.0
 
@@ -31,7 +31,16 @@ This fork adds:
 
 ## Runtime
 
-AdvancedBan Plus `2026.06.29.3` is built for Java 21. This follows the modern Minecraft server ecosystem in 2026 and allows the project to use current dependency lines such as HikariCP 7.x, JUnit 6.x and current platform APIs.
+AdvancedBan Plus `2026.06.29.4` is built for Java 21. This follows the modern Minecraft server ecosystem in 2026 and allows the project to use current dependency lines such as HikariCP 7.x, JUnit 6.x and current platform APIs.
+
+## Supported Versions
+
+- Java runtime: Java 21 required.
+- Bukkit/Spigot/Paper target: Minecraft 1.21.x, built against Spigot API `1.21.11-R0.2-SNAPSHOT` with Bukkit `api-version: 1.21`.
+- Paper/Folia-style forks: supported when they provide compatible Bukkit/Paper APIs and Java 21 runtime behavior.
+- BungeeCord/Waterfall-style proxies: built against BungeeCord API `1.20-R0.2-SNAPSHOT`.
+- Velocity: built against Velocity API `3.4.0`; Velocity requires at least Java 21.
+- Minecraft `26.1+`/future Java 25 server lines are not claimed as runtime-supported by this Java 21 build until a dedicated Java 25 release is produced.
 
 ## Configuration
 
@@ -64,6 +73,11 @@ ErrorLog:
   Backups: 3
   MaxEntryChars: 32768
 
+YamlMaintenance:
+  Enabled: true
+  BackupBeforeChanges: true
+  RemoveUnknownEntries: false
+
 Database:
   MaximumPoolSize: 10
   MinimumIdle: 1
@@ -80,6 +94,8 @@ Database:
 
 `ErrorLog` writes stack traces to `plugins/AdvancedBan/error.log` and rotates bounded backups (`error.log.1`, `error.log.2`, ...). Stack entries are size-capped and JNDI-style payload text is neutralized before writing.
 
+`YamlMaintenance` checks `config.yml`, `Messages.yml` and `Layouts.yml` on load/reload. Missing entries are copied from bundled defaults after a backup. Unknown-entry removal is available but disabled by default to avoid deleting custom admin sections.
+
 ## Build
 
 ```bash
@@ -92,11 +108,11 @@ On Windows hosts where the JDK trust store does not include the system certifica
 mvn clean package "-Djavax.net.ssl.trustStoreType=Windows-ROOT"
 ```
 
-Release `2026.06.29.3` was verified with `mvn test` and `mvn clean package` using the Windows root trust-store flag in this workspace.
+Release `2026.06.29.4` was verified with `mvn test` and `mvn clean package` using the Windows root trust-store flag in this workspace.
 
 Build outputs:
 
-- `bukkit/target/AdvancedBan-Bukkit-2026.06.29.3-RELEASE.jar`
-- `bungee/target/AdvancedBan-Bungee-2026.06.29.3-RELEASE.jar`
-- `velocity/target/AdvancedBan-Velocity-2026.06.29.3-RELEASE.jar`
-- `bundle/target/AdvancedBan-Bundle-2026.06.29.3-RELEASE.jar`
+- `bukkit/target/AdvancedBan-Bukkit-2026.06.29.4-RELEASE.jar`
+- `bungee/target/AdvancedBan-Bungee-2026.06.29.4-RELEASE.jar`
+- `velocity/target/AdvancedBan-Velocity-2026.06.29.4-RELEASE.jar`
+- `bundle/target/AdvancedBan-Bundle-2026.06.29.4-RELEASE.jar`

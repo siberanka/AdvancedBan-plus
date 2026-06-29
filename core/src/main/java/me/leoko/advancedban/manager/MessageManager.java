@@ -41,6 +41,15 @@ public class MessageManager {
         return str;
     }
 
+    public static String getMessageOrDefault(String path, String fallback, String... parameters) {
+        MethodInterface mi = mi();
+        String str = mi.getString(mi.getMessages(), path);
+        if (str == null) {
+            str = fallback;
+        }
+        return replace(str, parameters).replace('&', '\u00A7');
+    }
+
 
     /**
      * Get the message from the given path.<br>
@@ -58,6 +67,15 @@ public class MessageManager {
             prefixStr = getMessage("General.Prefix")+" ";
 
         return prefixStr+getMessage(path, parameters);
+    }
+
+    public static String getMessageOrDefault(String path, String fallback, boolean prefix, String... parameters) {
+        MethodInterface mi = mi();
+        String prefixStr = "";
+        if (prefix && !mi.getBoolean(mi.getConfig(), "Disable Prefix", false)) {
+            prefixStr = getMessage("General.Prefix") + " ";
+        }
+        return prefixStr + getMessageOrDefault(path, fallback, parameters);
     }
 
     /**
@@ -86,6 +104,18 @@ public class MessageManager {
 		        + "\n  - Visit yamllint.com to  validate your " + fileName
 		        + "\n  - Delete the message file and restart the server");
 		return Collections.singletonList("Failed! See console for details!");
+    }
+
+    public static List<String> getLayoutOrDefault(Object file, String path, List<String> fallback, String... parameters) {
+        MethodInterface mi = mi();
+        if (mi.contains(file, path)) {
+            return getLayout(file, path, parameters);
+        }
+        List<String> result = new ArrayList<>();
+        for (String line : fallback) {
+            result.add(replace(line, parameters).replace('&', '\u00A7'));
+        }
+        return result;
     }
 
     /**

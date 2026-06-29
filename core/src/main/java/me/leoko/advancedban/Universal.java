@@ -23,6 +23,7 @@ import java.nio.file.StandardCopyOption;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
@@ -78,7 +79,7 @@ public class Universal {
         try {
             DatabaseManager.get().setup(mi.getBoolean(mi.getConfig(), "UseMySQL", false));
         } catch (Exception ex) {
-            log("Failed enabling database-manager...");
+            logMessage("Console.DatabaseManagerEnableFailed", "Failed enabling database-manager...");
             debugException(ex);
         }
 
@@ -97,22 +98,10 @@ public class Universal {
                 : "GitHub release check disabled";
 
         if (mi.getBoolean(mi.getConfig(), "DetailedEnableMessage", true)) {
-            mi.log("\n \n&8[]=====[&7Enabling AdvancedBan&8]=====[]&r"
-                    + "\n&8| &cInformation:&r"
-                    + "\n&8|   &cName: &7AdvancedBan&r"
-                    + "\n&8|   &cDeveloper: &7Leoko&r"
-                    + "\n&8|   &cVersion: &7" + mi.getVersion() + "&r"
-                    + "\n&8|   &cStorage: &7" + (DatabaseManager.get().isUseMySQL() ? "MySQL (external)" : "HSQLDB (local)") + "&r"
-                    + "\n&8| &cSupport:&r"
-                    + "\n&8|   &cGithub: &7https://github.com/siberanka/AdvancedBan-plus/issues &r"
-                    + "\n&8|   &cDiscord: &7https://discord.gg/ycDG6rS &r"
-                    + "\n&8| &cTwitter: &7@LeokoGar&r"
-                    + "\n&8| &cUpdate:&r"
-                    + "\n&8|   &7" + upt  + "&r"
-                    + "\n&8[]================================[]&r\n ");
+            logLayout("Console.EnableDetailed", getConsoleParameters(upt));
         } else {
-            mi.log("&cEnabling AdvancedBan on Version &7&r" + mi.getVersion());
-            mi.log("&cCoded by &7Leoko &8| &7Twitter: @LeokoGar&r");
+            logMessage("Console.EnableSimple", "&cEnabling AdvancedBan on Version &7%VERSION%",
+                    "VERSION", mi.getVersion());
         }
 
         if (!mi.isUnitTesting()) {
@@ -128,20 +117,10 @@ public class Universal {
         DatabaseManager.get().shutdown();
 
         if (mi.getBoolean(mi.getConfig(), "DetailedDisableMessage", true)) {
-            mi.log("\n \n&8[]=====[&7Disabling AdvancedBan&8]=====[]"
-                    + "\n&8| &cInformation:"
-                    + "\n&8|   &cName: &7AdvancedBan"
-                    + "\n&8|   &cDeveloper: &7Leoko"
-                    + "\n&8|   &cVersion: &7" + getMethods().getVersion()
-                    + "\n&8|   &cStorage: &7" + (DatabaseManager.get().isUseMySQL() ? "MySQL (external)" : "HSQLDB (local)")
-                    + "\n&8| &cSupport:"
-                    + "\n&8|   &cGithub: &7https://github.com/siberanka/AdvancedBan-plus/issues"
-                    + "\n&8|   &cDiscord: &7https://discord.gg/ycDG6rS"
-                    + "\n&8| &cTwitter: &7@LeokoGar"
-                    + "\n&8[]================================[]&r\n ");
+            logLayout("Console.DisableDetailed", getConsoleParameters(""));
         } else {
-            mi.log("&cDisabling AdvancedBan on Version &7" + getMethods().getVersion());
-            mi.log("&cCoded by Leoko &8| &7Twitter: @LeokoGar");
+            logMessage("Console.DisableSimple", "&cDisabling AdvancedBan on Version &7%VERSION%",
+                    "VERSION", getMethods().getVersion());
         }
     }
 
@@ -196,18 +175,19 @@ public class Universal {
                 if (requester != null) {
                     sendUpdateResult(requester, result);
                 } else if (result.isUpdateAvailable()) {
-                    log("&eAdvancedBan Plus update available: &7" + result.getCurrentVersion()
-                            + " &8-> &a" + result.getLatestVersion());
-                    log("&eDownload: &7" + result.getReleaseUrl());
+                    logMessage("Console.UpdateAvailable", "&eAdvancedBan Plus update available: &7%CURRENT% &8-> &a%LATEST%",
+                            "CURRENT", result.getCurrentVersion(), "LATEST", result.getLatestVersion(), "URL", result.getReleaseUrl());
+                    logMessage("Console.UpdateDownload", "&eDownload: &7%URL%",
+                            "CURRENT", result.getCurrentVersion(), "LATEST", result.getLatestVersion(), "URL", result.getReleaseUrl());
                     mi.notify("ab.update.notify", getUpdateNotification(result));
                 } else {
-                    debug("AdvancedBan Plus is up to date according to GitHub releases.");
+                    debug(MessageManager.getMessageOrDefault("Console.UpdateCurrent", "AdvancedBan Plus is up to date according to GitHub releases."));
                 }
             } catch (Exception ex) {
                 if (requester != null) {
                     sendUpdateMessage(requester, "Update.Failed", "&cCould not check GitHub releases. See error.log for details.");
                 } else {
-                    log("&cFailed to check GitHub releases. See error.log for details.");
+                    logMessage("Console.UpdateFailed", "&cFailed to check GitHub releases. See error.log for details.");
                 }
                 debugException(ex);
             }
@@ -259,6 +239,36 @@ public class Universal {
             message = message.replace("%" + parameters[i] + "%", parameters[i + 1]);
         }
         return message;
+    }
+
+    public void logMessage(String path, String fallback, String... parameters) {
+        try {
+            log(MessageManager.getMessageOrDefault(path, fallback, parameters));
+        } catch (RuntimeException ex) {
+            log(replaceParameters(fallback, parameters));
+        }
+    }
+
+    public void logLayout(String path, String... parameters) {
+        try {
+            List<String> lines = MessageManager.getLayoutOrDefault(mi.getMessages(), path,
+                    Collections.singletonList("&cAdvancedBan %VERSION%"), parameters);
+            for (String line : lines) {
+                mi.log(line);
+            }
+        } catch (RuntimeException ex) {
+            mi.log(replaceParameters("&cAdvancedBan %VERSION%", parameters).replace('&', '\u00A7'));
+        }
+    }
+
+    private String[] getConsoleParameters(String updateStatus) {
+        return new String[]{
+                "VERSION", mi.getVersion(),
+                "STORAGE", DatabaseManager.get().isUseMySQL() ? "MySQL (external)" : "HSQLDB (local)",
+                "UPDATE", updateStatus,
+                "GITHUB", "https://github.com/siberanka/AdvancedBan-plus/issues",
+                "DISCORD", "https://discord.gg/ycDG6rS"
+        };
     }
 
     /**
@@ -398,7 +408,9 @@ public class Universal {
     public String callConnection(String name, String ip) {
         name = name.toLowerCase();
         String uuid = UUIDManager.get().getUUID(name);
-        if (uuid == null) return "[AdvancedBan] Failed to fetch your UUID";
+        if (uuid == null) {
+            return MessageManager.getMessageOrDefault("Connection.FailedUUID", "[AdvancedBan] Failed to fetch your UUID");
+        }
 
         if (ip != null) {
             getIps().remove(name);
@@ -409,7 +421,7 @@ public class Universal {
 
         if (interimData == null) {
             if (getMethods().getBoolean(mi.getConfig(), "LockdownOnError", true)) {
-                return "[AdvancedBan] Failed to load player data!";
+                return MessageManager.getMessageOrDefault("Connection.FailedDataLoad", "[AdvancedBan] Failed to load player data!");
             } else {
                 return null;
             }

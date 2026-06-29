@@ -8,11 +8,18 @@
 UseMySQL: false
 
 MySQL:
+  # Hostname or IP of your MySQL/MariaDB server.
   IP: localhost
+  # Database/schema name. Create it before enabling UseMySQL.
   DB-Name: database-name
+  # Database user. Give only the required permissions for this database.
   Username: admin
+  # Database password. Keep this file readable only by the server user.
   Password: superSecret
+  # Default MySQL/MariaDB port is 3306.
   Port: 3306
+  # JDBC connection properties appended to the connection URL.
+  # For production, prefer TLS settings supported by your database host.
   Properties: 'verifyServerCertificate=false&useSSL=false&useUnicode=true&characterEncoding=utf8'
 
 # Set to false if you want to have only short messages in the console
@@ -145,12 +152,26 @@ Friendly Register Commands: false
 # Checks the latest release in https://github.com/siberanka/AdvancedBan-plus and
 # notifies console/admins when a newer date.build release is available.
 UpdateChecker:
+  # Set to false to disable all outbound GitHub release checks.
   Enabled: true
+
+# Keeps config.yml, Messages.yml and Layouts.yml aligned with the bundled defaults.
+# Missing entries are added on load/reload so new releases do not break old files.
+# Backups are written to plugins/AdvancedBan/yml-backups before automatic edits.
+YamlMaintenance:
+  # Keep enabled on production; it repairs missing entries after updates.
+  Enabled: true
+  # Always backup a YAML file before AdvancedBan changes it.
+  BackupBeforeChanges: true
+  # Dangerous if you keep custom sections. When true, entries not present in the
+  # bundled defaults are removed after a backup. Leave false unless you want cleanup.
+  RemoveUnknownEntries: false
 
 # Bukkit/Paper only. If Simple Voice Chat is installed, AdvancedBan cancels
 # microphone packets from muted players so /mute and /tempmute also silence voice.
 VoiceChat:
   MuteIntegration:
+    # Disable only if another plugin handles voice mutes or you do not use voicechat.
     Enabled: true
 
 # Exposes a small compatibility layer for plugins compiled against the LiteBans API.
@@ -159,28 +180,45 @@ litebans-api-support: false
 
 # Defensive limits for malicious clients, automation, very large payloads and slow external APIs.
 Security:
+  # Maximum stored reason length. Longer/unsafe reasons are rejected or trimmed.
   MaxReasonLength: 255
+  # Maximum length of one command argument accepted by moderation commands.
   MaxArgumentLength: 256
+  # Maximum total command length. Protects against oversized payloads.
   MaxTotalCommandLength: 2048
+  # Timeout for external HTTP calls such as UUID and update checks.
   HttpConnectTimeoutMillis: 3000
+  # Read timeout for external HTTP calls.
   HttpReadTimeoutMillis: 3000
   CommandRateLimit:
+    # Limits repeated moderation commands from the same sender.
     Enabled: true
+    # Sliding window in milliseconds.
     WindowMillis: 1000
+    # Maximum accepted commands per sender within WindowMillis.
     MaxCommands: 6
 
 # Writes stack traces to plugins/AdvancedBan/error.log with bounded rotation.
 # Keep this enabled on production servers; logs are capped to prevent disk abuse.
 ErrorLog:
+  # Disable only if your host already captures plugin stack traces safely.
   Enabled: true
+  # Maximum size of error.log before rotation.
   MaxBytes: 1048576
+  # Number of rotated files to keep: error.log.1, error.log.2, ...
   Backups: 3
+  # Maximum characters written for a single stack trace entry.
   MaxEntryChars: 32768
 
 # HikariCP settings. Keep these conservative unless your database is dedicated to punishments.
 Database:
+  # Maximum SQL connections AdvancedBan may open.
   MaximumPoolSize: 10
+  # Idle connections kept warm.
   MinimumIdle: 1
+  # How long commands wait for a database connection before failing.
   ConnectionTimeoutMillis: 5000
+  # How long connection validation may take.
   ValidationTimeoutMillis: 3000
+  # 0 disables leak detection. Set e.g. 10000 only while debugging DB leaks.
   LeakDetectionThresholdMillis: 0

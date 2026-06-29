@@ -44,7 +44,7 @@ public final class LiteBansCompatibility {
         if (safeProvider() == null) {
             PlayerProvider.setInstance(new IdentityPlayerProvider());
         }
-        Universal.get().log("LiteBans API compatibility enabled.");
+        Universal.get().logMessage("Console.LiteBansCompatibilityEnabled", "LiteBans API compatibility enabled.");
     }
 
     public static void shutdown() {

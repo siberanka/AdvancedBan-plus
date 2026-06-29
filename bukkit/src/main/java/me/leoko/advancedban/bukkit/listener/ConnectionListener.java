@@ -2,6 +2,7 @@ package me.leoko.advancedban.bukkit.listener;
 
 import me.leoko.advancedban.Universal;
 import me.leoko.advancedban.bukkit.BukkitMain;
+import me.leoko.advancedban.manager.MessageManager;
 import me.leoko.advancedban.manager.PunishmentManager;
 import me.leoko.advancedban.manager.UUIDManager;
 import org.bukkit.Bukkit;
@@ -38,11 +39,10 @@ public class ConnectionListener implements Listener {
             if (event.getPlayer().getName().equalsIgnoreCase("Leoko")) {
                 Bukkit.getScheduler().runTaskLaterAsynchronously(BukkitMain.get(), () -> {
                     if (Universal.get().broadcastLeoko()) {
-                        Bukkit.broadcastMessage("");
-                        Bukkit.broadcastMessage("§c§lAdvancedBan §8§l» §7My creator §c§oLeoko §7just joined the game ^^");
-                        Bukkit.broadcastMessage("");
+                        MessageManager.getLayout(Universal.get().getMethods().getMessages(), "Broadcast.CreatorJoin")
+                                .forEach(Bukkit::broadcastMessage);
                     } else {
-                        event.getPlayer().sendMessage("§c§lAdvancedBan v2 §8§l» §cHey Leoko we are using your Plugin (NO-BC)");
+                        MessageManager.sendMessage(event.getPlayer(), "Broadcast.CreatorPrivate", false);
                     }
                 }, 20);
             }
