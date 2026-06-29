@@ -3,6 +3,7 @@ package me.leoko.advancedban.utils;
 import me.leoko.advancedban.MethodInterface;
 import me.leoko.advancedban.Universal;
 import me.leoko.advancedban.manager.DatabaseManager;
+import me.leoko.advancedban.manager.DiscordWebhookManager;
 import me.leoko.advancedban.manager.MessageManager;
 import me.leoko.advancedban.manager.PunishmentManager;
 import me.leoko.advancedban.manager.TimeManager;
@@ -135,6 +136,7 @@ public class Punishment {
 
         mi.callPunishmentEvent(this);
         LiteBansCompatibility.entryAdded(this);
+        DiscordWebhookManager.get().punishmentCreated(this, silent);
 
         if (getType().getBasic() == PunishmentType.WARNING) {
             String cmd = null;
@@ -214,6 +216,7 @@ public class Punishment {
         Universal.get().debug("Deleted punishment " + getId() + " from " + getName() + " punishment reason: " + getReason());
         mi.callRevokePunishmentEvent(this, massClear);
         LiteBansCompatibility.entryRemoved(this);
+        DiscordWebhookManager.get().punishmentRevoked(this, who, massClear);
     }
 
     public List<String> getLayout() {

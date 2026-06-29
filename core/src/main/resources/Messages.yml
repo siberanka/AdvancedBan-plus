@@ -69,6 +69,9 @@ Console:
   VoiceChatEnabled: "&aSimple Voice Chat mute integration enabled."
   VoiceChatServiceUnavailable: "Simple Voice Chat plugin detected but BukkitVoicechatService is not available yet."
   VoiceChatHookFailed: "&cFailed to hook Simple Voice Chat safely; voice mute integration disabled."
+  DiscordWebhookInvalidUrl: "&cDiscord webhook URL is empty or not allowed; webhook skipped."
+  DiscordWebhookFailed: "&cDiscord webhook failed with HTTP %CODE%."
+  DiscordWebhookPayloadTooLarge: "&cDiscord webhook payload for %EVENT% is too large; webhook skipped."
   YamlReplacedInvalid: "&cReplaced unreadable %FILE% with the bundled default. A backup was created."
   YamlMaintained: "&7Maintained %FILE%: added %ADDED% missing entries, removed %REMOVED% unknown entries."
   UUIDFetchFailed: "&cFailed fetching UUID of %NAME% from %URL%."
@@ -100,7 +103,7 @@ Console:
 ErrorSolutions:
   YamlMaintenanceKeyType: "A YAML file contains numeric keys, usually WarnActions or TempPerms. Update AdvancedBan, keep YamlMaintenance enabled and restore from yml-backups if the file was manually edited."
   DatabaseConnection: "Check database host, port, credentials, pool limits and network reachability. Keep LockdownOnError enabled until storage is healthy."
-  FoliaScheduler: "Use the AdvancedBan-Folia jar on Folia and avoid unsupported reloaders or forks that disable Paper/Folia scheduler APIs."
+  FoliaScheduler: "Use the AdvancedBan-Bundle jar on Folia and avoid unsupported reloaders or forks that disable Paper/Folia scheduler APIs."
   VoiceChat: "Update Simple Voice Chat and keep VoiceChat.MuteIntegration.Enabled false until the voicechat service loads cleanly."
 
 AdvancedBan:
@@ -177,6 +180,69 @@ Update:
   - "%PREFIX% &eA new AdvancedBan Plus release is available."
   - "&7Current: &c%CURRENT% &8| &7Latest: &a%LATEST%"
   - "&7Download: &f%URL%"
+
+StaffNotifications:
+  BannedJoin:
+    Message:
+    - "%PREFIX% &eBanned player tried to join: &c%NAME% &8(&7%IP%&8)"
+    - "&7Reason: &f%REASON% &8| &7ID: &f%ID%"
+  MutedChat:
+    Message:
+    - "%PREFIX% &eMuted player tried to chat: &c%NAME%"
+    - "&7Reason: &f%REASON%"
+  MutedCommand:
+    Message:
+    - "%PREFIX% &eMuted player tried a blocked command: &c%NAME%"
+    - "&7Command: &f%EVIDENCE%"
+
+DiscordWebhook:
+  PunishmentCreated:
+    Content: ""
+    Title: "%TYPE% Created"
+    Description: "%NAME% was punished by %OPERATOR%."
+    Fields:
+    - "Player|%NAME%|true"
+    - "Type|%TYPE%|true"
+    - "Duration|%DURATION%|true"
+    - "Reason|%REASON%|false"
+    - "ID|%ID% (%HEXID%)|true"
+  PunishmentRevoked:
+    Content: ""
+    Title: "%TYPE% Revoked"
+    Description: "%NAME%'s punishment was revoked by %REVOKED_BY%."
+    Fields:
+    - "Player|%NAME%|true"
+    - "Type|%TYPE%|true"
+    - "Mass clear|%MASS_CLEAR%|true"
+    - "Reason|%REASON%|false"
+    - "ID|%ID% (%HEXID%)|true"
+  BannedJoinAttempt:
+    Content: ""
+    Title: "Banned Join Attempt"
+    Description: "%NAME% tried to join while banned."
+    Fields:
+    - "Player|%NAME%|true"
+    - "IP|%IP%|true"
+    - "Reason|%REASON%|false"
+    - "Duration|%DURATION%|true"
+    - "ID|%ID% (%HEXID%)|true"
+  MutedChatAttempt:
+    Content: ""
+    Title: "Muted Chat Attempt"
+    Description: "%NAME% tried to chat while muted."
+    Fields:
+    - "Player|%NAME%|true"
+    - "Reason|%REASON%|false"
+    - "Duration|%DURATION%|true"
+  MutedCommandAttempt:
+    Content: ""
+    Title: "Muted Command Attempt"
+    Description: "%NAME% tried to use a blocked command while muted."
+    Fields:
+    - "Player|%NAME%|true"
+    - "Command|%EVIDENCE%|false"
+    - "Reason|%REASON%|false"
+    - "Duration|%DURATION%|true"
 
 
 Ban:

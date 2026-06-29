@@ -174,6 +174,82 @@ VoiceChat:
     # Disable only if another plugin handles voice mutes or you do not use voicechat.
     Enabled: true
 
+# Staff-only notifications for denied actions, similar to LiteBans-style alerts.
+# These messages are sent only to players with the configured permission nodes.
+StaffNotifications:
+  # Master switch for in-game/proxy staff alerts.
+  Enabled: true
+  # Maximum player-supplied text shown in staff alerts/webhooks.
+  MaxEvidenceLength: 160
+  # Safety cap for the in-memory throttle map.
+  MaxThrottleEntries: 1024
+  BannedJoin:
+    # Notify staff when an actively banned player tries to join.
+    Enabled: true
+    # Permission required to receive the alert.
+    Permission: "ab.notify.bannedjoin"
+    # Per-player cooldown for repeated join attempts.
+    ThrottleMillis: 30000
+  MutedChat:
+    # Notify staff when a muted player tries to chat.
+    Enabled: true
+    Permission: "ab.notify.mutedchat"
+  MutedCommand:
+    # Notify staff when a muted player tries to use a blocked command.
+    Enabled: true
+    Permission: "ab.notify.mutedcommand"
+  MutedAttempt:
+    # Shared per-player cooldown for muted chat/command attempts.
+    ThrottleMillis: 10000
+
+# Discord webhook integration for audit notifications.
+# Keep disabled until WebhookUrl is set to a private Discord webhook URL.
+DiscordWebhook:
+  Enabled: false
+  # Must be an https://discord.com/api/webhooks/... URL by default.
+  WebhookUrl: ""
+  # Keep true so compromised configs cannot post to arbitrary HTTP endpoints.
+  AllowDiscordDomainsOnly: true
+  # Keep false to neutralize @everyone/@here and role pings in payloads.
+  AllowMentions: false
+  # Skip Discord posts for commands executed with the silent flag.
+  RespectSilent: true
+  Username: "AdvancedBan Plus"
+  # Used by %SERVER% in webhook templates.
+  ServerName: "Global"
+  AvatarUrl: ""
+  ConnectTimeoutMillis: 3000
+  ReadTimeoutMillis: 3000
+  MaxPayloadChars: 6000
+  MaxContentLength: 1900
+  MaxDescriptionLength: 2048
+  MaxFieldLength: 1024
+  MaxFields: 10
+  RateLimit:
+    # Local flood guard. Discord may also apply its own webhook limits.
+    MinimumMillisBetweenPosts: 1000
+  Events:
+    PunishmentCreated: true
+    PunishmentRevoked: true
+    BannedJoinAttempt: true
+    MutedChatAttempt: true
+    MutedCommandAttempt: true
+  Embed:
+    Enabled: true
+    # Decimal RGB color. Example: red 15158332, green 3066993, orange 15105570.
+    Color: 15158332
+    AuthorName: "AdvancedBan Plus"
+    AuthorIconUrl: ""
+    ThumbnailUrl: ""
+    FooterText: "%SERVER% | %DATE%"
+    FooterIconUrl: ""
+  Colors:
+    PunishmentCreated: 15158332
+    PunishmentRevoked: 3066993
+    BannedJoinAttempt: 15105570
+    MutedChatAttempt: 15105570
+    MutedCommandAttempt: 15105570
+
 # Exposes a small compatibility layer for plugins compiled against the LiteBans API.
 # Disabled by default to avoid surprising class/API behavior on networks that also run LiteBans.
 litebans-api-support: false

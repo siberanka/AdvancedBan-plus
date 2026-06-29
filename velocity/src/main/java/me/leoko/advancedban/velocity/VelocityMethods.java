@@ -104,7 +104,7 @@ public class VelocityMethods implements MethodInterface {
 
     @Override
     public String getVersion() {
-        return "2026.06.29.7";
+        return "2026.06.29.8";
     }
 
     @Override
@@ -239,6 +239,7 @@ public class VelocityMethods implements MethodInterface {
             for (String str : pnt.getLayout()) {
                 sendMessage(player, str);
             }
+            Universal.get().notifyMutedAttempt(getName(player), getIP(player), pnt, "", false);
             return true;
         }
         return false;
@@ -252,6 +253,7 @@ public class VelocityMethods implements MethodInterface {
             for (String str : pnt.getLayout()) {
                 sendMessage(player, str);
             }
+            Universal.get().notifyMutedAttempt(getName(player), getIP(player), pnt, cmd, true);
             return true;
         }
         return false;

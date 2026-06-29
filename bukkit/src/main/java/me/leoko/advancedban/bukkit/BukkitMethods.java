@@ -306,6 +306,7 @@ public class BukkitMethods implements MethodInterface {
         Punishment pnt = PunishmentManager.get().getMute(UUIDManager.get().getUUID(getName(player)));
         if (pnt != null) {
             pnt.getLayout().forEach(str -> sendMessage(player, str));
+            Universal.get().notifyMutedAttempt(getName(player), getIP(player), pnt, "", false);
             return true;
         }
         return false;
@@ -316,6 +317,7 @@ public class BukkitMethods implements MethodInterface {
         Punishment pnt;
         if (cmd != null && cmd.length() > 1 && Universal.get().isMuteCommand(cmd.substring(1)) && (pnt = PunishmentManager.get().getMute(UUIDManager.get().getUUID(getName(player)))) != null) {
             pnt.getLayout().forEach(str -> sendMessage(player, str));
+            Universal.get().notifyMutedAttempt(getName(player), getIP(player), pnt, cmd, true);
             return true;
         }
         return false;

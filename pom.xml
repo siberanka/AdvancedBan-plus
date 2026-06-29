@@ -6,7 +6,7 @@
     
     <groupId>me.leoko.advancedban</groupId>
     <artifactId>AdvancedBan</artifactId>
-    <version>2026.06.29.7</version>
+    <version>2026.06.29.8</version>
     <packaging>pom</packaging>
 
     <modules>

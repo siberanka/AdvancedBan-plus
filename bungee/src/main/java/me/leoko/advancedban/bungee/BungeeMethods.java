@@ -316,6 +316,7 @@ public class BungeeMethods implements MethodInterface {
             for (String str : pnt.getLayout()) {
                 sendMessage(player, str);
             }
+            Universal.get().notifyMutedAttempt(getName(player), getIP(player), pnt, "", false);
             return true;
         }
         return false;
@@ -329,6 +330,7 @@ public class BungeeMethods implements MethodInterface {
             for (String str : pnt.getLayout()) {
                 sendMessage(player, str);
             }
+            Universal.get().notifyMutedAttempt(getName(player), getIP(player), pnt, cmd, true);
             return true;
         }
         return false;

@@ -245,6 +245,11 @@ public class TestMethods implements MethodInterface {
 
     @Override
     public List<String> getStringList(Object file, String path) {
+        if (config.containsKey(path) && config.get(path) instanceof List) {
+            @SuppressWarnings("unchecked")
+            List<String> values = (List<String>) config.get(path);
+            return values;
+        }
         return new ArrayList<>();
     }
 

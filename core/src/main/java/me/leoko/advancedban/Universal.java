@@ -114,6 +114,7 @@ public class Universal {
      */
     public void shutdown() {
         LiteBansCompatibility.shutdown();
+        DiscordWebhookManager.get().clear();
         DatabaseManager.get().shutdown();
 
         if (mi.getBoolean(mi.getConfig(), "DetailedDisableMessage", true)) {
@@ -434,7 +435,12 @@ public class Universal {
             return null;
         }
 
+        DiscordWebhookManager.get().bannedJoinAttempt(name, ip, pt);
         return pt.getLayoutBSN();
+    }
+
+    public void notifyMutedAttempt(String name, String ip, Punishment punishment, String message, boolean command) {
+        DiscordWebhookManager.get().mutedChatAttempt(name, ip, punishment, message, command);
     }
 
     /**
@@ -520,7 +526,7 @@ public class Universal {
         }
         if (text.contains("FoliaSchedulerBridge") || text.contains("Folia") && text.contains("scheduler")) {
             return MessageManager.getMessageOrDefault("ErrorSolutions.FoliaScheduler",
-                    "Use the AdvancedBan-Folia jar on Folia and do not run unsupported scheduler forks or reloaders.");
+                    "Use the AdvancedBan-Bundle jar on Folia and do not run unsupported scheduler forks or reloaders.");
         }
         if (text.contains("voicechat") || text.contains("BukkitVoicechatService")) {
             return MessageManager.getMessageOrDefault("ErrorSolutions.VoiceChat",
