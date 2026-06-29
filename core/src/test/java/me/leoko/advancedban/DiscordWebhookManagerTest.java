@@ -1,6 +1,8 @@
 package me.leoko.advancedban;
 
 import me.leoko.advancedban.manager.DiscordWebhookManager;
+import me.leoko.advancedban.utils.Punishment;
+import me.leoko.advancedban.utils.PunishmentType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -50,5 +52,39 @@ class DiscordWebhookManagerTest {
         assertEquals("Testing", fields.get(1).get("value"));
 
         Universal.get().shutdown();
+    }
+
+    @Test
+    void shouldResolveDetailedEventNamesForPunishments() {
+        Universal.get().setup(new TestMethods(dataFolder, Map.of()));
+
+        assertEquals("TempMute", DiscordWebhookManager.get().createdEventName(punishment(PunishmentType.TEMP_MUTE)));
+        assertEquals("IpBan", DiscordWebhookManager.get().createdEventName(punishment(PunishmentType.IP_BAN)));
+        assertEquals("Unmute", DiscordWebhookManager.get().revokedEventName(punishment(PunishmentType.TEMP_MUTE)));
+        assertEquals("Unban", DiscordWebhookManager.get().revokedEventName(punishment(PunishmentType.TEMP_IP_BAN)));
+        assertEquals("Unwarn", DiscordWebhookManager.get().revokedEventName(punishment(PunishmentType.TEMP_WARNING)));
+
+        Universal.get().shutdown();
+    }
+
+    @Test
+    void shouldUseDetailedEventTogglesAndColors() {
+        Universal.get().setup(new TestMethods(dataFolder, Map.of(
+                "DiscordWebhook.Events.Ban.Enabled", false,
+                "DiscordWebhook.Events.Mute.Enabled", true,
+                "DiscordWebhook.Colors.Ban", 123456,
+                "DiscordWebhook.Embed.Color", 654321
+        )));
+
+        assertFalse(DiscordWebhookManager.get().isEventEnabled("Ban"));
+        assertTrue(DiscordWebhookManager.get().isEventEnabled("Mute"));
+        assertEquals(123456, DiscordWebhookManager.get().colorFor("Ban"));
+        assertEquals(654321, DiscordWebhookManager.get().colorFor("Unmute"));
+
+        Universal.get().shutdown();
+    }
+
+    private Punishment punishment(PunishmentType type) {
+        return new Punishment("PlayerOne", "playerone", "Testing", "Console", type, 1L, -1L, null, 7);
     }
 }

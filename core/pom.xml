@@ -7,7 +7,7 @@
     <parent>
         <groupId>me.leoko.advancedban</groupId>
         <artifactId>AdvancedBan</artifactId>
-        <version>2026.06.29.8</version>
+        <version>2026.06.29.9</version>
     </parent>
 
     <artifactId>AdvancedBan-Core</artifactId>

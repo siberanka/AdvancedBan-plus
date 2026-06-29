@@ -52,6 +52,9 @@ final class SimpleYamlConfig {
 
     boolean getBoolean(String path, boolean def) {
         Object value = get(path);
+        if (value instanceof Map || value instanceof List) {
+            return def;
+        }
         return value instanceof Boolean ? (Boolean) value : value == null ? def : Boolean.parseBoolean(String.valueOf(value));
     }
 

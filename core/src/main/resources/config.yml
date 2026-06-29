@@ -189,18 +189,22 @@ StaffNotifications:
     # Permission required to receive the alert.
     Permission: "ab.notify.bannedjoin"
     # Per-player cooldown for repeated join attempts.
-    ThrottleMillis: 30000
+    CooldownMillis: 30000
   MutedChat:
     # Notify staff when a muted player tries to chat.
     Enabled: true
     Permission: "ab.notify.mutedchat"
+    # Per-player cooldown for repeated chat attempts.
+    CooldownMillis: 10000
   MutedCommand:
     # Notify staff when a muted player tries to use a blocked command.
     Enabled: true
     Permission: "ab.notify.mutedcommand"
+    # Per-player cooldown for repeated blocked command attempts.
+    CooldownMillis: 10000
   MutedAttempt:
-    # Shared per-player cooldown for muted chat/command attempts.
-    ThrottleMillis: 10000
+    # Legacy fallback for older configs; MutedChat/MutedCommand override it.
+    CooldownMillis: 10000
 
 # Discord webhook integration for audit notifications.
 # Keep disabled until WebhookUrl is set to a private Discord webhook URL.
@@ -229,11 +233,43 @@ DiscordWebhook:
     # Local flood guard. Discord may also apply its own webhook limits.
     MinimumMillisBetweenPosts: 1000
   Events:
-    PunishmentCreated: true
-    PunishmentRevoked: true
-    BannedJoinAttempt: true
-    MutedChatAttempt: true
-    MutedCommandAttempt: true
+    # Punishment creation events.
+    Ban:
+      Enabled: true
+    TempBan:
+      Enabled: true
+    IpBan:
+      Enabled: true
+    TempIpBan:
+      Enabled: true
+    Mute:
+      Enabled: true
+    TempMute:
+      Enabled: true
+    Warn:
+      Enabled: true
+    TempWarn:
+      Enabled: true
+    Kick:
+      Enabled: true
+    Note:
+      Enabled: true
+    # Punishment revoke events.
+    Unban:
+      Enabled: true
+    Unmute:
+      Enabled: true
+    Unwarn:
+      Enabled: true
+    Unnote:
+      Enabled: true
+    # Attempt/denied-action events.
+    BannedJoinAttempt:
+      Enabled: true
+    MutedChatAttempt:
+      Enabled: true
+    MutedCommandAttempt:
+      Enabled: true
   Embed:
     Enabled: true
     # Decimal RGB color. Example: red 15158332, green 3066993, orange 15105570.
@@ -244,8 +280,20 @@ DiscordWebhook:
     FooterText: "%SERVER% | %DATE%"
     FooterIconUrl: ""
   Colors:
-    PunishmentCreated: 15158332
-    PunishmentRevoked: 3066993
+    Ban: 15158332
+    TempBan: 15105570
+    IpBan: 15158332
+    TempIpBan: 15105570
+    Mute: 10181046
+    TempMute: 10181046
+    Warn: 16776960
+    TempWarn: 16776960
+    Kick: 15105570
+    Note: 3447003
+    Unban: 3066993
+    Unmute: 3066993
+    Unwarn: 3066993
+    Unnote: 3066993
     BannedJoinAttempt: 15105570
     MutedChatAttempt: 15105570
     MutedCommandAttempt: 15105570

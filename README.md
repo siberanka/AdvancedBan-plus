@@ -4,7 +4,7 @@
 
 Modernized AdvancedBan build for Bukkit/Spigot/Paper, Folia, BungeeCord and Velocity networks.
 
-Version: `2026.06.29.8`
+Version: `2026.06.29.9`
 Authors: Leoko, siberanka
 License: GPL-3.0
 
@@ -27,8 +27,8 @@ This fork keeps the original AdvancedBan workflow familiar while adding current 
 - Optional LiteBans-compatible database format through `Database.database-format: litebans`.
 - Non-destructive database-format switching; existing AdvancedBan tables are not deleted or auto-migrated.
 - Typed LiteBans ID lookups to avoid wrong-table resolution when LiteBans tables share the same numeric id.
-- Custom Discord webhook audit notifications for punishments, revokes, banned join attempts and muted chat/command attempts.
-- LiteBans-style staff alerts when banned players try to join or muted players try to chat/use blocked commands.
+- Custom Discord webhook audit notifications with per-event toggles and colors for ban, unban, mute, unmute, warn, unwarn, note, kick, banned join attempts and muted chat/command attempts.
+- LiteBans-style staff alerts when banned players try to join or muted players try to chat/use blocked commands, with configurable cooldowns.
 - Simple Voice Chat mute integration on Bukkit/Paper. Active `/mute` and `/tempmute` punishments cancel outgoing microphone packets when Simple Voice Chat is installed.
 - GitHub release update checker for `siberanka/AdvancedBan-plus`.
 - `/advancedban update` command and admin update notifications.
@@ -66,15 +66,29 @@ DiscordWebhook:
   ServerName: "Global"
   AllowDiscordDomainsOnly: true
   AllowMentions: false
+  Events:
+    Ban:
+      Enabled: true
+    Unban:
+      Enabled: true
+    MutedChatAttempt:
+      Enabled: true
+  Colors:
+    Ban: 15158332
+    Unban: 3066993
+    MutedChatAttempt: 15105570
 
 StaffNotifications:
   Enabled: true
   BannedJoin:
     Enabled: true
+    CooldownMillis: 30000
   MutedChat:
     Enabled: true
+    CooldownMillis: 10000
   MutedCommand:
     Enabled: true
+    CooldownMillis: 10000
 
 VoiceChat:
   MuteIntegration:
@@ -115,9 +129,9 @@ Database:
 
 `Database.database-format` defaults to `default`, which keeps the original AdvancedBan tables: `Punishments` and `PunishmentHistory`. Setting it to `litebans` writes punishments to LiteBans-compatible tables such as `litebans_bans`, `litebans_mutes`, `litebans_warnings` and `litebans_kicks`. Existing AdvancedBan rows are not dropped or migrated automatically. Back up production databases before changing formats.
 
-`DiscordWebhook` posts fully customizable embed notifications to Discord. Webhook URLs are restricted to Discord domains by default, mentions are neutralized unless explicitly enabled, payload sizes are capped and every title, description and field is controlled from `Messages.yml`.
+`DiscordWebhook` posts fully customizable embed notifications to Discord. Webhook URLs are restricted to Discord domains by default, mentions are neutralized unless explicitly enabled, payload sizes are capped, and every event can be toggled/colored separately from `config.yml`. Titles, descriptions and fields are controlled from `Messages.yml`.
 
-`StaffNotifications` sends permission-based in-game/proxy alerts for banned join attempts and muted chat/command attempts. These alerts are throttled per player to avoid spam during automated reconnect or chat floods.
+`StaffNotifications` sends permission-based in-game/proxy alerts for banned join attempts and muted chat/command attempts. `CooldownMillis` is configurable per alert type to avoid spam during automated reconnect, chat floods or blocked-command floods.
 
 `VoiceChat.MuteIntegration.Enabled` is Bukkit/Paper-only. When Simple Voice Chat is installed, AdvancedBan registers a voicechat API plugin and cancels microphone packets from actively muted players. If Simple Voice Chat is not installed, the hook is skipped safely.
 
@@ -138,7 +152,7 @@ Database:
 
 Use the Bundle jar from GitHub releases:
 
-- `AdvancedBan-Bundle-2026.06.29.8-RELEASE.jar`
+- `AdvancedBan-Bundle-2026.06.29.9-RELEASE.jar`
 
 The Bundle jar is the supported production artifact for Bukkit, Spigot, Paper, Folia, BungeeCord and Velocity. Do not install the module jars from local build folders as production plugins; they are build modules used to assemble the Bundle.
 
@@ -154,24 +168,24 @@ On Windows hosts where the JDK trust store does not include the system certifica
 mvn clean package "-Djavax.net.ssl.trustStoreType=Windows-ROOT"
 ```
 
-Release `2026.06.29.8` was verified with:
+Release `2026.06.29.9` was verified with:
 
-- `mvn -pl core test` (`14` tests)
+- `mvn -pl core test` (`16` tests)
 - `mvn clean package "-Djavax.net.ssl.trustStoreType=Windows-ROOT"`
 
 Release artifact:
 
-- `bundle/target/AdvancedBan-Bundle-2026.06.29.8-RELEASE.jar`
+- `bundle/target/AdvancedBan-Bundle-2026.06.29.9-RELEASE.jar`
 
 Release page:
 
-- https://github.com/siberanka/AdvancedBan-plus/releases/tag/v2026.06.29.8
+- https://github.com/siberanka/AdvancedBan-plus/releases/tag/v2026.06.29.9
 
 ## Türkçe
 
 Bukkit/Spigot/Paper, Folia, BungeeCord ve Velocity ağları için modernize edilmiş AdvancedBan sürümüdür.
 
-Sürüm: `2026.06.29.8`
+Sürüm: `2026.06.29.9`
 Geliştiriciler: Leoko, siberanka
 Lisans: GPL-3.0
 
@@ -194,8 +208,8 @@ Bu fork, klasik AdvancedBan kullanımını korurken güncel platform desteği, d
 - `Database.database-format: litebans` ile isteğe bağlı LiteBans uyumlu veritabanı formatı.
 - Verileri silmeyen database-format geçişi; mevcut AdvancedBan tabloları silinmez ve otomatik migrate edilmez.
 - LiteBans tablolarında aynı numeric ID farklı tablolarda bulunursa yanlış tabloya gitmeyi engelleyen type-aware ID çözümleme.
-- Ceza, ceza kaldırma, banlı giriş denemesi ve muteli chat/komut denemeleri için özelleştirilebilir Discord webhook audit bildirimleri.
-- Banlı oyuncu giriş denediğinde veya muteli oyuncu konuşmaya/engelli komut kullanmaya çalıştığında LiteBans tarzı staff bildirimleri.
+- Ban, unban, mute, unmute, warn, unwarn, note, kick, banlı giriş denemesi ve muteli chat/komut denemeleri için event bazlı aç/kapat ve renk ayarlı Discord webhook audit bildirimleri.
+- Banlı oyuncu giriş denediğinde veya muteli oyuncu konuşmaya/engelli komut kullanmaya çalıştığında cooldown ayarlı LiteBans tarzı staff bildirimleri.
 - Bukkit/Paper için Simple Voice Chat mute entegrasyonu. Simple Voice Chat kuruluysa aktif `/mute` ve `/tempmute` cezalarında mikrofon paketleri engellenir.
 - `siberanka/AdvancedBan-plus` GitHub release kontrolü.
 - `/advancedban update` komutu ve adminlere update bildirimi.
@@ -233,15 +247,29 @@ DiscordWebhook:
   ServerName: "Global"
   AllowDiscordDomainsOnly: true
   AllowMentions: false
+  Events:
+    Ban:
+      Enabled: true
+    Unban:
+      Enabled: true
+    MutedChatAttempt:
+      Enabled: true
+  Colors:
+    Ban: 15158332
+    Unban: 3066993
+    MutedChatAttempt: 15105570
 
 StaffNotifications:
   Enabled: true
   BannedJoin:
     Enabled: true
+    CooldownMillis: 30000
   MutedChat:
     Enabled: true
+    CooldownMillis: 10000
   MutedCommand:
     Enabled: true
+    CooldownMillis: 10000
 
 VoiceChat:
   MuteIntegration:
@@ -282,9 +310,9 @@ Database:
 
 `Database.database-format` varsayılan olarak `default` gelir ve klasik AdvancedBan tabloları olan `Punishments` ve `PunishmentHistory` kullanılır. `litebans` yapıldığında cezalar `litebans_bans`, `litebans_mutes`, `litebans_warnings` ve `litebans_kicks` gibi LiteBans uyumlu tablolara yazılır. Mevcut AdvancedBan satırları silinmez ve otomatik migrate edilmez. Production veritabanı formatı değiştirilmeden önce mutlaka yedek alınmalıdır.
 
-`DiscordWebhook`, Discord'a tamamen özelleştirilebilir embed audit bildirimleri gönderir. Webhook URL'leri varsayılan olarak Discord domainleriyle sınırlandırılır, mentionlar özellikle açılmadıkça etkisizleştirilir, payload boyutları limitlenir ve tüm başlık/açıklama/field içerikleri `Messages.yml` üzerinden düzenlenir.
+`DiscordWebhook`, Discord'a tamamen özelleştirilebilir embed audit bildirimleri gönderir. Webhook URL'leri varsayılan olarak Discord domainleriyle sınırlandırılır, mentionlar özellikle açılmadıkça etkisizleştirilir, payload boyutları limitlenir, her event `config.yml` üzerinden ayrı açılıp kapatılabilir ve renklendirilebilir. Tüm başlık/açıklama/field içerikleri `Messages.yml` üzerinden düzenlenir.
 
-`StaffNotifications`, banlı giriş denemeleri ve muteli chat/komut denemeleri için yetki bazlı oyun içi/proxy uyarıları gönderir. Otomatik reconnect veya chat flood durumlarında spam oluşmaması için bildirimler oyuncu bazlı throttle edilir.
+`StaffNotifications`, banlı giriş denemeleri ve muteli chat/komut denemeleri için yetki bazlı oyun içi/proxy uyarıları gönderir. Otomatik reconnect, chat flood veya engelli komut flood durumlarında spam oluşmaması için `CooldownMillis` değerleri event bazlı ayarlanabilir.
 
 `VoiceChat.MuteIntegration.Enabled` sadece Bukkit/Paper tarafında çalışır. Simple Voice Chat kuruluysa AdvancedBan voicechat API plugin'i kaydeder ve aktif mute cezası olan oyuncuların mikrofon paketlerini iptal eder. Simple Voice Chat yoksa hook güvenli şekilde atlanır.
 
@@ -305,7 +333,7 @@ Database:
 
 GitHub release üzerinden Bundle jarını kullanın:
 
-- `AdvancedBan-Bundle-2026.06.29.8-RELEASE.jar`
+- `AdvancedBan-Bundle-2026.06.29.9-RELEASE.jar`
 
 Bundle jar; Bukkit, Spigot, Paper, Folia, BungeeCord ve Velocity için desteklenen production artefactıdır. Lokal build klasörlerindeki modül jarlarını production plugin olarak kurmayın; onlar Bundle jarı oluşturmak için kullanılan build modülleridir.
 
@@ -321,15 +349,15 @@ Windows ortamında JDK trust store sistem sertifikalarını görmüyorsa şu kom
 mvn clean package "-Djavax.net.ssl.trustStoreType=Windows-ROOT"
 ```
 
-`2026.06.29.8` release'i şu kontrollerle doğrulanmıştır:
+`2026.06.29.9` release'i şu kontrollerle doğrulanmıştır:
 
-- `mvn -pl core test` (`14` test)
+- `mvn -pl core test` (`16` test)
 - `mvn clean package "-Djavax.net.ssl.trustStoreType=Windows-ROOT"`
 
 Release artefactı:
 
-- `bundle/target/AdvancedBan-Bundle-2026.06.29.8-RELEASE.jar`
+- `bundle/target/AdvancedBan-Bundle-2026.06.29.9-RELEASE.jar`
 
 Release sayfası:
 
-- https://github.com/siberanka/AdvancedBan-plus/releases/tag/v2026.06.29.8
+- https://github.com/siberanka/AdvancedBan-plus/releases/tag/v2026.06.29.9

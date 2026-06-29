@@ -3,6 +3,7 @@ package me.leoko.advancedban.manager;
 import me.leoko.advancedban.MethodInterface;
 import me.leoko.advancedban.Universal;
 import me.leoko.advancedban.utils.Punishment;
+import me.leoko.advancedban.utils.PunishmentType;
 import me.leoko.advancedban.utils.Security;
 
 import java.io.IOException;
@@ -34,18 +35,21 @@ public class DiscordWebhookManager {
         if (silent && getBoolean("DiscordWebhook.RespectSilent", true)) {
             return;
         }
-        sendPunishmentEvent("PunishmentCreated", punishment, "SILENT", String.valueOf(silent));
+        sendPunishmentEvent(createdEventName(punishment), punishment,
+                "ACTION", "created",
+                "SILENT", String.valueOf(silent));
     }
 
     public void punishmentRevoked(Punishment punishment, String revokedBy, boolean massClear) {
-        sendPunishmentEvent("PunishmentRevoked", punishment,
+        sendPunishmentEvent(revokedEventName(punishment), punishment,
+                "ACTION", "revoked",
                 "REVOKED_BY", safeValue(revokedBy, "CONSOLE"),
                 "MASS_CLEAR", String.valueOf(massClear));
     }
 
     public void bannedJoinAttempt(String name, String ip, Punishment punishment) {
         String key = "ban:" + safeValue(punishment == null ? null : punishment.getUuid(), name);
-        if (!allowAttempt(key, getLong("StaffNotifications.BannedJoin.ThrottleMillis", 30000L))) {
+        if (!allowAttempt(key, cooldown("StaffNotifications.BannedJoin", 30000L))) {
             return;
         }
         String[] parameters = attemptParameters(name, ip, punishment, null, "join");
@@ -55,11 +59,11 @@ public class DiscordWebhookManager {
 
     public void mutedChatAttempt(String name, String ip, Punishment punishment, String message, boolean command) {
         String key = (command ? "cmd:" : "chat:") + safeValue(punishment == null ? null : punishment.getUuid(), name);
-        if (!allowAttempt(key, getLong("StaffNotifications.MutedAttempt.ThrottleMillis", 10000L))) {
+        String section = command ? "StaffNotifications.MutedCommand" : "StaffNotifications.MutedChat";
+        if (!allowAttempt(key, cooldown(section, cooldown("StaffNotifications.MutedAttempt", 10000L)))) {
             return;
         }
         String event = command ? "MutedCommandAttempt" : "MutedChatAttempt";
-        String section = command ? "StaffNotifications.MutedCommand" : "StaffNotifications.MutedChat";
         String permission = command ? "ab.notify.mutedcommand" : "ab.notify.mutedchat";
         String evidence = Security.limit(Security.sanitizeForStorage(message), getInt("StaffNotifications.MaxEvidenceLength", 160));
         String[] parameters = attemptParameters(name, ip, punishment, evidence, command ? "command" : "chat");
@@ -103,7 +107,11 @@ public class DiscordWebhookManager {
         List<Map<String, Object>> fields = new ArrayList<>();
         int maxFields = Math.max(0, Math.min(25, getInt("DiscordWebhook.MaxFields", 10)));
         int maxField = Math.max(32, Math.min(1024, getInt("DiscordWebhook.MaxFieldLength", 1024)));
-        for (String line : mi.getStringList(mi.getMessages(), "DiscordWebhook." + event + ".Fields")) {
+        List<String> configuredFields = mi.getStringList(mi.getMessages(), "DiscordWebhook." + event + ".Fields");
+        if (configuredFields.isEmpty()) {
+            configuredFields = mi.getStringList(mi.getMessages(), "DiscordWebhook." + genericEvent(event) + ".Fields");
+        }
+        for (String line : configuredFields) {
             if (fields.size() >= maxFields || line == null) {
                 break;
             }
@@ -180,7 +188,7 @@ public class DiscordWebhookManager {
     }
 
     private void send(String event, String... parameters) {
-        if (!getBoolean("DiscordWebhook.Enabled", false) || !getBoolean("DiscordWebhook.Events." + event, true)) {
+        if (!getBoolean("DiscordWebhook.Enabled", false) || !isEventEnabled(event)) {
             return;
         }
         MethodInterface mi = Universal.get().getMethods();
@@ -210,7 +218,7 @@ public class DiscordWebhookManager {
         Map<String, Object> payload = new LinkedHashMap<>();
         putIfPresent(payload, "username", cleanDiscordText(mi.getString(mi.getConfig(), "DiscordWebhook.Username", "AdvancedBan Plus"), 80));
         putIfPresent(payload, "avatar_url", safeUrl(mi.getString(mi.getConfig(), "DiscordWebhook.AvatarUrl", "")));
-        String content = message("DiscordWebhook." + event + ".Content", "", parameters);
+        String content = eventMessage(event, "Content", "", parameters);
         putIfPresent(payload, "content", cleanDiscordText(content, getInt("DiscordWebhook.MaxContentLength", 1900)));
         if (!getBoolean("DiscordWebhook.AllowMentions", false)) {
             Map<String, Object> allowedMentions = new LinkedHashMap<>();
@@ -220,8 +228,8 @@ public class DiscordWebhookManager {
 
         if (getBoolean("DiscordWebhook.Embed.Enabled", true)) {
             Map<String, Object> embed = new LinkedHashMap<>();
-            putIfPresent(embed, "title", cleanDiscordText(message("DiscordWebhook." + event + ".Title", event, parameters), 256));
-            putIfPresent(embed, "description", cleanDiscordText(message("DiscordWebhook." + event + ".Description", "", parameters),
+            putIfPresent(embed, "title", cleanDiscordText(eventMessage(event, "Title", event, parameters), 256));
+            putIfPresent(embed, "description", cleanDiscordText(eventMessage(event, "Description", "", parameters),
                     getInt("DiscordWebhook.MaxDescriptionLength", 2048)));
             embed.put("color", colorFor(event));
             putObjectWithUrl(embed, "author",
@@ -289,17 +297,113 @@ public class DiscordWebhookManager {
         return false;
     }
 
+    public boolean isEventEnabled(String event) {
+        boolean legacyDefault = getBoolean("DiscordWebhook.Events." + genericEvent(event), true);
+        boolean flatDefault = getBoolean("DiscordWebhook.Events." + event, legacyDefault);
+        return getBoolean("DiscordWebhook.Events." + event + ".Enabled", flatDefault);
+    }
+
+    public String createdEventName(Punishment punishment) {
+        if (punishment == null || punishment.getType() == null) {
+            return "PunishmentCreated";
+        }
+        switch (punishment.getType()) {
+            case BAN:
+                return "Ban";
+            case TEMP_BAN:
+                return "TempBan";
+            case IP_BAN:
+                return "IpBan";
+            case TEMP_IP_BAN:
+                return "TempIpBan";
+            case MUTE:
+                return "Mute";
+            case TEMP_MUTE:
+                return "TempMute";
+            case WARNING:
+                return "Warn";
+            case TEMP_WARNING:
+                return "TempWarn";
+            case KICK:
+                return "Kick";
+            case NOTE:
+                return "Note";
+            default:
+                return "PunishmentCreated";
+        }
+    }
+
+    public String revokedEventName(Punishment punishment) {
+        if (punishment == null || punishment.getType() == null) {
+            return "PunishmentRevoked";
+        }
+        PunishmentType basic = punishment.getType().getBasic();
+        if (basic == PunishmentType.BAN) {
+            return "Unban";
+        }
+        if (basic == PunishmentType.MUTE) {
+            return "Unmute";
+        }
+        if (basic == PunishmentType.WARNING) {
+            return "Unwarn";
+        }
+        if (basic == PunishmentType.NOTE) {
+            return "Unnote";
+        }
+        return "PunishmentRevoked";
+    }
+
+    private String eventMessage(String event, String key, String fallback, String... parameters) {
+        MethodInterface mi = Universal.get().getMethods();
+        String path = "DiscordWebhook." + event + "." + key;
+        if (mi.contains(mi.getMessages(), path)) {
+            return message(path, fallback, parameters);
+        }
+        return message("DiscordWebhook." + genericEvent(event) + "." + key, fallback, parameters);
+    }
+
     private String message(String path, String fallback, String... parameters) {
         return MessageManager.getMessageOrDefault(path, fallback, parameters);
     }
 
-    private int colorFor(String event) {
-        MethodInterface mi = Universal.get().getMethods();
+    public int colorFor(String event) {
         String path = "DiscordWebhook.Colors." + event;
-        if (mi.contains(mi.getConfig(), path)) {
-            return clampColor(mi.getInteger(mi.getConfig(), path, 15158332));
+        int configured = getInt(path, Integer.MIN_VALUE);
+        if (configured != Integer.MIN_VALUE) {
+            return clampColor(configured);
         }
-        return clampColor(mi.getInteger(mi.getConfig(), "DiscordWebhook.Embed.Color", 15158332));
+        String genericPath = "DiscordWebhook.Colors." + genericEvent(event);
+        int generic = getInt(genericPath, Integer.MIN_VALUE);
+        if (generic != Integer.MIN_VALUE) {
+            return clampColor(generic);
+        }
+        return clampColor(getInt("DiscordWebhook.Embed.Color", 15158332));
+    }
+
+    private String genericEvent(String event) {
+        if (event == null) {
+            return "PunishmentCreated";
+        }
+        switch (event) {
+            case "Unban":
+            case "Unmute":
+            case "Unwarn":
+            case "Unnote":
+                return "PunishmentRevoked";
+            case "Ban":
+            case "TempBan":
+            case "IpBan":
+            case "TempIpBan":
+            case "Mute":
+            case "TempMute":
+            case "Warn":
+            case "TempWarn":
+            case "Kick":
+            case "Note":
+                return "PunishmentCreated";
+            default:
+                return event;
+        }
     }
 
     private int clampColor(int color) {
@@ -408,5 +512,9 @@ public class DiscordWebhookManager {
         } catch (RuntimeException ex) {
             return def;
         }
+    }
+
+    private long cooldown(String section, long def) {
+        return getLong(section + ".CooldownMillis", getLong(section + ".ThrottleMillis", def));
     }
 }

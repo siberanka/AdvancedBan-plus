@@ -216,6 +216,125 @@ DiscordWebhook:
     - "Mass clear|%MASS_CLEAR%|true"
     - "Reason|%REASON%|false"
     - "ID|%ID% (%HEXID%)|true"
+  Ban:
+    Content: ""
+    Title: "Ban Created"
+    Description: "%NAME% was banned by %OPERATOR%."
+    Fields:
+    - "Player|%NAME%|true"
+    - "Duration|%DURATION%|true"
+    - "Reason|%REASON%|false"
+    - "ID|%ID% (%HEXID%)|true"
+  TempBan:
+    Content: ""
+    Title: "Temporary Ban Created"
+    Description: "%NAME% was temporarily banned by %OPERATOR%."
+    Fields:
+    - "Player|%NAME%|true"
+    - "Duration|%DURATION%|true"
+    - "Reason|%REASON%|false"
+    - "ID|%ID% (%HEXID%)|true"
+  IpBan:
+    Content: ""
+    Title: "IP Ban Created"
+    Description: "%NAME% was IP-banned by %OPERATOR%."
+    Fields:
+    - "Target|%NAME%|true"
+    - "Duration|%DURATION%|true"
+    - "Reason|%REASON%|false"
+    - "ID|%ID% (%HEXID%)|true"
+  TempIpBan:
+    Content: ""
+    Title: "Temporary IP Ban Created"
+    Description: "%NAME% was temporarily IP-banned by %OPERATOR%."
+    Fields:
+    - "Target|%NAME%|true"
+    - "Duration|%DURATION%|true"
+    - "Reason|%REASON%|false"
+    - "ID|%ID% (%HEXID%)|true"
+  Mute:
+    Content: ""
+    Title: "Mute Created"
+    Description: "%NAME% was muted by %OPERATOR%."
+    Fields:
+    - "Player|%NAME%|true"
+    - "Duration|%DURATION%|true"
+    - "Reason|%REASON%|false"
+    - "ID|%ID% (%HEXID%)|true"
+  TempMute:
+    Content: ""
+    Title: "Temporary Mute Created"
+    Description: "%NAME% was temporarily muted by %OPERATOR%."
+    Fields:
+    - "Player|%NAME%|true"
+    - "Duration|%DURATION%|true"
+    - "Reason|%REASON%|false"
+    - "ID|%ID% (%HEXID%)|true"
+  Warn:
+    Content: ""
+    Title: "Warning Created"
+    Description: "%NAME% was warned by %OPERATOR%."
+    Fields:
+    - "Player|%NAME%|true"
+    - "Reason|%REASON%|false"
+    - "ID|%ID% (%HEXID%)|true"
+  TempWarn:
+    Content: ""
+    Title: "Temporary Warning Created"
+    Description: "%NAME% was temporarily warned by %OPERATOR%."
+    Fields:
+    - "Player|%NAME%|true"
+    - "Duration|%DURATION%|true"
+    - "Reason|%REASON%|false"
+    - "ID|%ID% (%HEXID%)|true"
+  Kick:
+    Content: ""
+    Title: "Kick Created"
+    Description: "%NAME% was kicked by %OPERATOR%."
+    Fields:
+    - "Player|%NAME%|true"
+    - "Reason|%REASON%|false"
+    - "ID|%ID% (%HEXID%)|true"
+  Note:
+    Content: ""
+    Title: "Note Created"
+    Description: "%OPERATOR% added a note for %NAME%."
+    Fields:
+    - "Player|%NAME%|true"
+    - "Note|%REASON%|false"
+    - "ID|%ID% (%HEXID%)|true"
+  Unban:
+    Content: ""
+    Title: "Unban"
+    Description: "%NAME% was unbanned by %REVOKED_BY%."
+    Fields:
+    - "Player|%NAME%|true"
+    - "Original reason|%REASON%|false"
+    - "ID|%ID% (%HEXID%)|true"
+  Unmute:
+    Content: ""
+    Title: "Unmute"
+    Description: "%NAME% was unmuted by %REVOKED_BY%."
+    Fields:
+    - "Player|%NAME%|true"
+    - "Original reason|%REASON%|false"
+    - "ID|%ID% (%HEXID%)|true"
+  Unwarn:
+    Content: ""
+    Title: "Warning Removed"
+    Description: "%NAME%'s warning was removed by %REVOKED_BY%."
+    Fields:
+    - "Player|%NAME%|true"
+    - "Original reason|%REASON%|false"
+    - "ID|%ID% (%HEXID%)|true"
+  Unnote:
+    Content: ""
+    Title: "Note Removed"
+    Description: "%NAME%'s note was removed by %REVOKED_BY%."
+    Fields:
+    - "Player|%NAME%|true"
+    - "Original note|%REASON%|false"
+    - "ID|%ID% (%HEXID%)|true"
   BannedJoinAttempt:
     Content: ""
     Title: "Banned Join Attempt"
