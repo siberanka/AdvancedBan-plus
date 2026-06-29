@@ -231,6 +231,14 @@ public class UpdateManager {
                         "# This is a Bukkit-specific option. It has no meaning on BungeeCord",
                         "Friendly Register Commands: false"));
             }
+            if (!mi.contains(mi.getConfig(), "VoiceChat.MuteIntegration.Enabled")) {
+                lines.addAll(Arrays.asList("",
+                        "# Bukkit/Paper only. If Simple Voice Chat is installed, AdvancedBan cancels",
+                        "# microphone packets from muted players so /mute and /tempmute also silence voice.",
+                        "VoiceChat:",
+                        "  MuteIntegration:",
+                        "    Enabled: true"));
+            }
             FileUtils.writeLines(file, lines);
         } catch (IOException exc) {
             Universal.get().debugException(exc);

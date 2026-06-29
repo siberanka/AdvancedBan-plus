@@ -15,7 +15,7 @@ import java.nio.file.Path;
 @Plugin(
         id = "advancedban",
         name = "AdvancedBan",
-        version = "2026.06.29.1",
+        version = "2026.06.29.2",
         description = "Modernized AdvancedBan with Bukkit, BungeeCord and Velocity support",
         authors = {"Leoko", "siberanka"}
 )

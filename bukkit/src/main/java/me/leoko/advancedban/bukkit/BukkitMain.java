@@ -9,6 +9,8 @@ import org.bukkit.Bukkit;
 import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.lang.reflect.Method;
+
 public class BukkitMain extends JavaPlugin {
     private static BukkitMain instance;
 
@@ -26,6 +28,7 @@ public class BukkitMain extends JavaPlugin {
         this.getServer().getPluginManager().registerEvents(new ChatListener(), this);
         this.getServer().getPluginManager().registerEvents(new CommandListener(), this);
         this.getServer().getPluginManager().registerEvents(new InternalListener(), this);
+        registerVoicechatHook();
 
         Bukkit.getOnlinePlayers().forEach(player -> {
             AsyncPlayerPreLoginEvent apple = new AsyncPlayerPreLoginEvent(player.getName(), player.getAddress().getAddress(), player.getUniqueId());
@@ -40,5 +43,22 @@ public class BukkitMain extends JavaPlugin {
     @Override
     public void onDisable() {
         Universal.get().shutdown();
+    }
+
+    private void registerVoicechatHook() {
+        if (Bukkit.getPluginManager().getPlugin("voicechat") == null) {
+            return;
+        }
+        try {
+            Class<?> hookClass = Class.forName("me.leoko.advancedban.bukkit.voicechat.VoicechatHook", true, getClassLoader());
+            Method register = hookClass.getMethod("register", BukkitMain.class);
+            register.invoke(null, this);
+        } catch (ReflectiveOperationException ex) {
+            Universal.get().log("&cFailed to hook Simple Voice Chat safely; voice mute integration disabled.");
+            Universal.get().debugException(ex);
+        } catch (LinkageError ex) {
+            Universal.get().log("&cFailed to hook Simple Voice Chat safely; voice mute integration disabled.");
+            Universal.get().debug(ex.getMessage());
+        }
     }
 }

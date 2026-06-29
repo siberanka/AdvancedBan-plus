@@ -2,8 +2,8 @@ name: AdvancedBan
 version: ${project.version}
 main: ${project.groupId}.bukkit.BukkitMain
 authors: [Leoko, siberanka]
-softdepend: [Vault]
-api-version: 1.13
+softdepend: [Vault, voicechat]
+api-version: 1.21
 
 commands:
   AdvancedBan:

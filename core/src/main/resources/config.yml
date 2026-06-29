@@ -142,6 +142,12 @@ Disable Prefix: false
 # This is a Bukkit-specific option. It has no meaning on BungeeCord
 Friendly Register Commands: false
 
+# Bukkit/Paper only. If Simple Voice Chat is installed, AdvancedBan cancels
+# microphone packets from muted players so /mute and /tempmute also silence voice.
+VoiceChat:
+  MuteIntegration:
+    Enabled: true
+
 # Exposes a small compatibility layer for plugins compiled against the LiteBans API.
 # Disabled by default to avoid surprising class/API behavior on networks that also run LiteBans.
 litebans-api-support: false

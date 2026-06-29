@@ -2,8 +2,8 @@
 
 Modernized AdvancedBan build for Bukkit/Spigot/Paper, BungeeCord and Velocity networks.
 
-Version: `2026.06.29.1`  
-Authors: Leoko, siberanka  
+Version: `2026.06.29.2`
+Authors: Leoko, siberanka
 License: GPL-3.0
 
 ## Features
@@ -19,7 +19,7 @@ This fork adds:
 - Thread-safe IP cache and stronger null handling around database reads.
 - LiteBans API compatibility classes behind `litebans-api-support: false`.
 - Modern bStats API usage for Bukkit/Bungee builds.
-- Common voice chat command aliases in `MuteCommands`.
+- Simple Voice Chat mute integration on Bukkit/Paper: `/mute` and `/tempmute` cancel outgoing microphone packets when Simple Voice Chat is installed.
 
 ## Platforms
 
@@ -27,12 +27,20 @@ This fork adds:
 - BungeeCord: existing adapter retained and hardened.
 - Velocity: new `AdvancedBan-Velocity` module with command, login, chat, command mute and event support.
 
+## Runtime
+
+AdvancedBan Plus `2026.06.29.2` is built for Java 21. This follows the modern Minecraft server ecosystem in 2026 and allows the project to use current dependency lines such as HikariCP 7.x, JUnit 6.x and current platform APIs.
+
 ## Configuration
 
 New default options in `config.yml`:
 
 ```yaml
 litebans-api-support: false
+
+VoiceChat:
+  MuteIntegration:
+    Enabled: true
 
 Security:
   MaxReasonLength: 255
@@ -55,6 +63,8 @@ Database:
 
 `litebans-api-support` exposes compatible `litebans.api.Database`, `Events`, `Entry`, `PlayerProvider` and `RandomID` classes for plugins that query LiteBans-style ban/mute/warn state. It is disabled by default to avoid surprising behavior on networks that also run LiteBans.
 
+`VoiceChat.MuteIntegration.Enabled` is Bukkit/Paper-only. When Simple Voice Chat is installed, AdvancedBan registers a voicechat API plugin and cancels microphone packets from actively muted players. If Simple Voice Chat is not installed, the hook is not loaded.
+
 ## Build
 
 ```bash
@@ -67,11 +77,11 @@ On Windows hosts where the JDK trust store does not include the system certifica
 mvn clean package "-Djavax.net.ssl.trustStoreType=Windows-ROOT"
 ```
 
-Release `2026.06.29.1` was verified with `mvn test` and `mvn clean package` using the Windows root trust-store flag in this workspace.
+Release `2026.06.29.2` was verified with `mvn test` and `mvn clean package` using the Windows root trust-store flag in this workspace.
 
 Build outputs:
 
-- `bukkit/target/AdvancedBan-Bukkit-2026.06.29.1-RELEASE.jar`
-- `bungee/target/AdvancedBan-Bungee-2026.06.29.1-RELEASE.jar`
-- `velocity/target/AdvancedBan-Velocity-2026.06.29.1-RELEASE.jar`
-- `bundle/target/AdvancedBan-Bundle-2026.06.29.1-RELEASE.jar`
+- `bukkit/target/AdvancedBan-Bukkit-2026.06.29.2-RELEASE.jar`
+- `bungee/target/AdvancedBan-Bungee-2026.06.29.2-RELEASE.jar`
+- `velocity/target/AdvancedBan-Velocity-2026.06.29.2-RELEASE.jar`
+- `bundle/target/AdvancedBan-Bundle-2026.06.29.2-RELEASE.jar`
