@@ -48,7 +48,7 @@ public class Punishment {
     }
 
     public String getReason() {
-        return (reason == null ? mi.getString(mi.getConfig(), "DefaultReason", "none") : reason).replaceAll("'", "");
+        return (reason == null ? mi.getString(mi.getConfig(), "DefaultReason", "none") : reason).replace("'", "");
     }
 
     public String getHexId() {
@@ -91,6 +91,14 @@ public class Punishment {
                         Universal.get().log("!! Not able to update ID of punishment! Please restart the server to resolve this issue!");
                         Universal.get().log("!! Failed at: " + toString());
                     }
+                }
+            } catch (SQLException ex) {
+                Universal.get().debugSqlException(ex);
+            }
+        } else {
+            try (ResultSet rs = DatabaseManager.get().executeResultStatement(SQLQuery.SELECT_EXACT_PUNISHMENT_HISTORY, getUuid(), getStart(), getType().name())) {
+                if (rs != null && rs.next()) {
+                    id = rs.getInt("id");
                 }
             } catch (SQLException ex) {
                 Universal.get().debugSqlException(ex);

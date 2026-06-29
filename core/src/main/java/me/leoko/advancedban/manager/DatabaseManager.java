@@ -81,6 +81,13 @@ public class DatabaseManager {
         if (!dataSource.isClosed()) {
             dataSource.close();
         }
+        if (!useMySQL) {
+            try {
+                Thread.sleep(100L);
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+            }
+        }
     }
     
     private CachedRowSet createCachedRowSet() throws SQLException {

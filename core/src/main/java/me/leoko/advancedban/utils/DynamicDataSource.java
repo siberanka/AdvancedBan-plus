@@ -38,7 +38,7 @@ public class DynamicDataSource {
                 dataFolder.mkdirs();
             }
             config.setDriverClassName(driverClassName);
-            config.setJdbcUrl("jdbc:hsqldb:file:" + mi.getDataFolder().getPath() + "/data/storage;hsqldb.lock_file=false");
+            config.setJdbcUrl("jdbc:hsqldb:file:" + mi.getDataFolder().getPath() + "/data/storage;hsqldb.lock_file=false;shutdown=true;hsqldb.write_delay=false");
             config.setUsername("SA");
             config.setPassword("");
         }

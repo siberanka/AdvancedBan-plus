@@ -3,6 +3,7 @@ package me.leoko.advancedban.bungee.listener;
 import com.imaginarycode.minecraft.redisbungee.events.PubSubMessageEvent;
 import me.leoko.advancedban.MethodInterface;
 import me.leoko.advancedban.Universal;
+import me.leoko.advancedban.utils.Security;
 import net.md_5.bungee.api.ProxyServer;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.plugin.Listener;
@@ -19,28 +20,47 @@ public class PubSubMessageListener implements Listener {
     @SuppressWarnings("deprecation")
 	@EventHandler
     public void onMessageReceive(PubSubMessageEvent e) {
-        if (e.getChannel().equals("advancedban:main")) {
-            String[] msg = e.getMessage().split(" ");
-            if (e.getMessage().startsWith("kick ")) {
-                if (ProxyServer.getInstance().getPlayer(msg[1]) != null) {
-                    ProxyServer.getInstance().getPlayer(msg[1]).disconnect(e.getMessage().substring((msg[0] + msg[1]).length() + 2));
+        String channel = e.getChannel();
+        String message = e.getMessage();
+        if (channel == null || message == null || message.length() > Security.DEFAULT_MAX_TOTAL_COMMAND_LENGTH) {
+            return;
+        }
+        if (channel.equals("advancedban:main")) {
+            String[] msg = message.split(" ", 3);
+            if (message.startsWith("kick ")) {
+                if (msg.length < 3) {
+                    return;
                 }
-            } else if (e.getMessage().startsWith("notification ")) {
+                ProxiedPlayer player = ProxyServer.getInstance().getPlayer(msg[1]);
+                if (player != null) {
+                    player.disconnect(msg[2]);
+                }
+            } else if (message.startsWith("notification ")) {
+                if (msg.length < 3) {
+                    return;
+                }
                 for (ProxiedPlayer pp : ProxyServer.getInstance().getPlayers()) {
                     if (mi.hasPerms(pp, msg[1])) {
-                        mi.sendMessage(pp, e.getMessage().substring((msg[0] + msg[1]).length() + 2));
+                        mi.sendMessage(pp, msg[2]);
                     }
                 }
-            } else if (e.getMessage().startsWith("message ")) {
-                if (ProxyServer.getInstance().getPlayer(msg[1]) != null) {
-                    ProxyServer.getInstance().getPlayer(msg[1]).sendMessage(e.getMessage().substring((msg[0] + msg[1]).length() + 2));
+            } else if (message.startsWith("message ")) {
+                if (msg.length < 3) {
+                    return;
+                }
+                ProxiedPlayer player = ProxyServer.getInstance().getPlayer(msg[1]);
+                if (player != null) {
+                    player.sendMessage(msg[2]);
                 }
                 if (msg[1].equalsIgnoreCase("CONSOLE")) {
-                    ProxyServer.getInstance().getConsole().sendMessage(e.getMessage().substring((msg[0] + msg[1]).length() + 2));
+                    ProxyServer.getInstance().getConsole().sendMessage(msg[2]);
                 }
             }
-        } else if (e.getChannel().equals("advancedban:connection")) {
-            String[] msg = e.getMessage().split(",");
+        } else if (channel.equals("advancedban:connection")) {
+            String[] msg = message.split(",", 2);
+            if (msg.length < 2 || !Security.isSafePlayerName(msg[0])) {
+                return;
+            }
             Universal.get().getIps().remove(msg[0].toLowerCase());
             Universal.get().getIps().put(msg[0].toLowerCase(), msg[1]);
         }

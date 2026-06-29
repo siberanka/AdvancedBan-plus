@@ -61,4 +61,17 @@ Database:
 mvn clean package
 ```
 
-If Maven cannot resolve dependencies because of a local Java trust-store problem, fix the JDK/Maven CA certificates first. In this workspace, Maven Central failed with `PKIX path building failed`; core, Bukkit and Velocity sources were additionally checked with direct `javac` compilation against locally cached jars.
+On Windows hosts where the JDK trust store does not include the system certificates, this equivalent command can be used:
+
+```bash
+mvn clean package "-Djavax.net.ssl.trustStoreType=Windows-ROOT"
+```
+
+Release `2026.06.29.1` was verified with `mvn test` and `mvn clean package` using the Windows root trust-store flag in this workspace.
+
+Build outputs:
+
+- `bukkit/target/AdvancedBan-Bukkit-2026.06.29.1-RELEASE.jar`
+- `bungee/target/AdvancedBan-Bungee-2026.06.29.1-RELEASE.jar`
+- `velocity/target/AdvancedBan-Velocity-2026.06.29.1-RELEASE.jar`
+- `bundle/target/AdvancedBan-Bundle-2026.06.29.1-RELEASE.jar`

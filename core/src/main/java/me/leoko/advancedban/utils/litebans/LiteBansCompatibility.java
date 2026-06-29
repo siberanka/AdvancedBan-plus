@@ -191,12 +191,12 @@ public final class LiteBansCompatibility {
 
         @Override
         public Entry getKick(UUID uuid, String ip, String server) {
-            return null;
+            return byTarget(uuid, ip, PunishmentType.KICK);
         }
 
         @Override
         public Entry getKick(long id, String server) {
-            return null;
+            return byHistoryId(id, PunishmentType.KICK);
         }
 
         @Override
@@ -234,7 +234,30 @@ public final class LiteBansCompatibility {
             return punishment != null && punishment.getType().getBasic() == basicType ? toEntry(punishment, true) : null;
         }
 
+        private Entry byHistoryId(long id, PunishmentType basicType) {
+            if (id > Integer.MAX_VALUE || id < 0) {
+                return null;
+            }
+            Punishment punishment = PunishmentManager.get().getHistoryPunishment((int) id);
+            return punishment != null && punishment.getType().getBasic() == basicType ? toEntry(punishment, false) : null;
+        }
+
         private Entry byTarget(UUID uuid, String ip, PunishmentType basicType) {
+            if (basicType == PunishmentType.KICK) {
+                if (uuid != null) {
+                    List<Punishment> punishments = PunishmentManager.get().getPunishments(Security.normalizeUuid(uuid.toString()), basicType, false);
+                    if (!punishments.isEmpty()) {
+                        return toEntry(punishments.get(0), false);
+                    }
+                }
+                if (ip != null) {
+                    List<Punishment> punishments = PunishmentManager.get().getPunishments(ip, basicType, false);
+                    if (!punishments.isEmpty()) {
+                        return toEntry(punishments.get(0), false);
+                    }
+                }
+                return null;
+            }
             if (uuid != null) {
                 List<Punishment> punishments = PunishmentManager.get().getPunishments(Security.normalizeUuid(uuid.toString()), basicType, true);
                 if (!punishments.isEmpty()) {

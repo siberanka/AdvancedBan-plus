@@ -217,6 +217,30 @@ public class PunishmentManager {
         return null;
     }
 
+    public Punishment getHistoryPunishment(int id) {
+        for (Punishment punishment : history) {
+            if (punishment.getId() == id) {
+                return punishment;
+            }
+        }
+
+        try (ResultSet rs = DatabaseManager.get().executeResultStatement(SQLQuery.SELECT_PUNISHMENT_HISTORY_BY_ID, id)) {
+            if (rs == null) {
+                return null;
+            }
+            if (rs.next()) {
+                return getPunishmentFromResultSet(rs);
+            }
+        } catch (SQLException ex) {
+            Universal universal = universal();
+            universal.log("An error has occurred getting a history punishment by his id.");
+            universal.debug("Punishment id: '" + id + "'");
+            universal.debugSqlException(ex);
+        }
+
+        return null;
+    }
+
     /**
      * Get an active warning by id.
      *

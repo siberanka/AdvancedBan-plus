@@ -89,7 +89,7 @@ public class UpdateManager {
                         "  PageFooter: \"&7Use &e&o/notes %NEXT_PAGE% &7to see the next page\""
                 ), true);
             } catch (IOException e) {
-                e.printStackTrace();
+                Universal.get().debugException(e);
             }
         }
 
@@ -126,7 +126,7 @@ public class UpdateManager {
                 lines.add(index + 1, "  MuteReason: \"  &cReason &8\\xbb &7%REASON%\"");
                 FileUtils.writeLines(file, lines);
             } catch (IOException ex) {
-                ex.printStackTrace();
+                Universal.get().debugException(ex);
             }
         }
 
@@ -138,7 +138,7 @@ public class UpdateManager {
                 lines.add(index + 1, "  BanReason: \"  &cReason &8\\xbb &7%REASON%\"");
                 FileUtils.writeLines(file, lines);
             } catch (IOException ex) {
-                ex.printStackTrace();
+                Universal.get().debugException(ex);
             }
         }
         if (!mi.contains(mi.getMessages(), "Tempipban")) {
@@ -168,7 +168,7 @@ public class UpdateManager {
                         "  Done: \"&7Punishment &a&o#%ID% &7has successfully been updated!\"",
                         "  NotFound: \"&cSorry we have not been able to find this punishment\""), true);
             } catch (IOException e) {
-                e.printStackTrace();
+                Universal.get().debugException(e);
             }
         }
         try {
@@ -233,7 +233,7 @@ public class UpdateManager {
             }
             FileUtils.writeLines(file, lines);
         } catch (IOException exc) {
-            exc.printStackTrace();
+            Universal.get().debugException(exc);
         }
     }
 
@@ -245,7 +245,7 @@ public class UpdateManager {
             lines.add(index + indexOffset, insert);
             FileUtils.writeLines(file, "UTF8", lines);
         } catch (IOException ex) {
-            ex.printStackTrace();
+            Universal.get().debugException(ex);
         }
     }
 }

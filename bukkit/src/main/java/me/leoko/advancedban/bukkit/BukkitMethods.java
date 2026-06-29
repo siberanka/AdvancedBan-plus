@@ -55,7 +55,9 @@ public class BukkitMethods implements MethodInterface {
         // Vault support
         if (Bukkit.getServer().getPluginManager().getPlugin("Vault") != null) {
             RegisteredServiceProvider<net.milkbowl.vault.permission.Permission> rsp = Bukkit.getServer().getServicesManager().getRegistration(net.milkbowl.vault.permission.Permission.class);
-            permissionVault = (player, perms) -> rsp.getProvider().playerHas(null, player, perms);
+            if (rsp != null && rsp.getProvider() != null) {
+                permissionVault = (player, perms) -> rsp.getProvider().playerHas(null, player, perms);
+            }
         }
     }
 
@@ -242,6 +244,9 @@ public class BukkitMethods implements MethodInterface {
 
     @Override
     public void executeCommand(String cmd) {
+        if (cmd == null || cmd.length() > Security.DEFAULT_MAX_TOTAL_COMMAND_LENGTH) {
+            return;
+        }
         Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd);
     }
 
@@ -262,13 +267,13 @@ public class BukkitMethods implements MethodInterface {
 
     @Override
     public String getInternUUID(Object player) {
-        return player instanceof OfflinePlayer ? ((OfflinePlayer) player).getUniqueId().toString().replaceAll("-", "") : "none";
+        return player instanceof OfflinePlayer ? ((OfflinePlayer) player).getUniqueId().toString().replace("-", "") : "none";
     }
 
     @SuppressWarnings("deprecation")
     @Override
     public String getInternUUID(String player) {
-        return Bukkit.getOfflinePlayer(player).getUniqueId().toString().replaceAll("-", "");
+        return Bukkit.getOfflinePlayer(player).getUniqueId().toString().replace("-", "");
     }
 
     @Override
@@ -395,7 +400,7 @@ public class BukkitMethods implements MethodInterface {
 
     @Override
     public void log(String msg) {
-        Bukkit.getServer().getConsoleSender().sendMessage(msg.replaceAll("&", "§"));
+        Bukkit.getServer().getConsoleSender().sendMessage(ChatColor.translateAlternateColorCodes('&', msg));
     }
 
     @Override

@@ -22,6 +22,10 @@ public final class Security {
         return name != null && PLAYER_NAME.matcher(name).matches();
     }
 
+    public static boolean isSafePlayerName(String name) {
+        return isValidPlayerName(name);
+    }
+
     public static boolean isValidUuid(String uuid) {
         return uuid != null && UUID.matcher(uuid).matches();
     }
@@ -56,6 +60,12 @@ public final class Security {
 
     public static String sanitizeReason(String reason) {
         return limit(sanitizeForStorage(reason), getInt("Security.MaxReasonLength", DEFAULT_MAX_REASON_LENGTH));
+    }
+
+    public static boolean isReasonSafe(String reason) {
+        return reason != null
+                && reason.length() <= getInt("Security.MaxReasonLength", DEFAULT_MAX_REASON_LENGTH)
+                && sanitizeForStorage(reason).length() == reason.trim().length();
     }
 
     public static String sanitizeForStorage(String value) {

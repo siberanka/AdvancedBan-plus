@@ -127,6 +127,9 @@ public class UUIDManager {
      * @return
      */
     public UUID fromString(String uuid) {
+        if (uuid == null) {
+            return null;
+        }
         if (!uuid.contains("-") && uuid.length() == 32)
             uuid = uuid
                     .replaceFirst(
@@ -154,6 +157,9 @@ public class UUIDManager {
      * @return the nonhyphenated uuid or null if not found
      */
     public String getInMemoryUUID(String name) {
+        if (name == null) {
+            return null;
+        }
         return activeUUIDs.get(name.toLowerCase());
     }
 
@@ -165,6 +171,9 @@ public class UUIDManager {
      * @return the player name or null if not found
      */
     public String getInMemoryName(String uuid) {
+        if (uuid == null) {
+            return null;
+        }
         for (Entry<String, String> rs : activeUUIDs.entrySet()) {
             if (rs.getValue().equalsIgnoreCase(uuid)) {
                 return rs.getKey();
@@ -218,7 +227,7 @@ public class UUIDManager {
     private String askAPI(String url, String name, String key) throws IOException {
     	MethodInterface mi = mi();
         name = name.toLowerCase();
-        HttpURLConnection request = (HttpURLConnection) new URL(url.replaceAll("%NAME%", name).replaceAll("%TIMESTAMP%", new Date().getTime() + "")).openConnection();
+        HttpURLConnection request = (HttpURLConnection) new URL(url.replace("%NAME%", name).replace("%TIMESTAMP%", new Date().getTime() + "")).openConnection();
         request.setConnectTimeout(Security.getInt("Security.HttpConnectTimeoutMillis", 3000));
         request.setReadTimeout(Security.getInt("Security.HttpReadTimeoutMillis", 3000));
         request.setUseCaches(false);

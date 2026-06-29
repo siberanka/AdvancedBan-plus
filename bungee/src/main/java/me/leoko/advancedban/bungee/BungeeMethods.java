@@ -101,7 +101,7 @@ public class BungeeMethods implements MethodInterface {
                 mysql = ConfigurationProvider.getProvider(YamlConfiguration.class).load(configFile);
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            Universal.get().debugException(e);
         }
 
     }
@@ -123,7 +123,7 @@ public class BungeeMethods implements MethodInterface {
                 json = json.getAsJsonObject(keys[i]);
             }
 
-            return json.get(keys[keys.length - 1]).toString().replaceAll("\"", "");
+            return json.get(keys[keys.length - 1]).toString().replace("\"", "");
 
         } catch (Exception exc) {
             return null;
@@ -231,12 +231,17 @@ public class BungeeMethods implements MethodInterface {
 
     @Override
     public void kickPlayer(String player, String reason) {
-        if(BungeeMain.getCloudSupport() != null){
-            BungeeMain.getCloudSupport().kick(getPlayer(player).getUniqueId(), reason);
-        }else if (Universal.isRedis()) {
+        ProxiedPlayer proxiedPlayer = getPlayer(player);
+        if (proxiedPlayer == null) {
+            return;
+        }
+        if(BungeeMain.getCloudSupport() != null && BungeeMain.getCloudSupport().kick(proxiedPlayer.getUniqueId(), reason)){
+            return;
+        }
+        if (Universal.isRedis()) {
             RedisBungee.getApi().sendChannelMessage("advancedban:main", "kick " + player + " " + reason);
-        } else if (getPlayer(player) != null) {
-            getPlayer(player).disconnect(TextComponent.fromLegacyText(reason));
+        } else {
+            proxiedPlayer.disconnect(TextComponent.fromLegacyText(reason));
         }
     }
 
@@ -267,6 +272,9 @@ public class BungeeMethods implements MethodInterface {
 
     @Override
     public void executeCommand(String cmd) {
+        if (cmd == null || cmd.length() > Security.DEFAULT_MAX_TOTAL_COMMAND_LENGTH) {
+            return;
+        }
         ProxyServer.getInstance().getPluginManager().dispatchCommand(ProxyServer.getInstance().getConsole(), cmd);
     }
 
@@ -277,7 +285,8 @@ public class BungeeMethods implements MethodInterface {
 
     @Override
     public String getName(String uuid) {
-        return ProxyServer.getInstance().getPlayer(UUID.fromString(uuid)).getName();
+        ProxiedPlayer player = ProxyServer.getInstance().getPlayer(UUID.fromString(uuid));
+        return player == null ? null : player.getName();
     }
 
     @Override
@@ -287,7 +296,7 @@ public class BungeeMethods implements MethodInterface {
 
     @Override
     public String getInternUUID(Object player) {
-        return player instanceof ProxiedPlayer ? ((ProxiedPlayer) player).getUniqueId().toString().replaceAll("-", "") : "none";
+        return player instanceof ProxiedPlayer ? ((ProxiedPlayer) player).getUniqueId().toString().replace("-", "") : "none";
     }
 
     @Override
@@ -297,7 +306,7 @@ public class BungeeMethods implements MethodInterface {
             return null;
         }
         UUID uniqueId = proxiedPlayer.getUniqueId();
-        return uniqueId == null ? null : uniqueId.toString().replaceAll("-", "");
+        return uniqueId == null ? null : uniqueId.toString().replace("-", "");
     }
 
     @Override
@@ -337,7 +346,7 @@ public class BungeeMethods implements MethodInterface {
             return null;
         }
         JsonElement obj = ((JsonObject) element).get(key);
-        return obj != null ? obj.toString().replaceAll("\"", "") : null;
+        return obj != null ? obj.toString().replace("\"", "") : null;
     }
 
     @Override
@@ -347,7 +356,7 @@ public class BungeeMethods implements MethodInterface {
             return null;
         }
         JsonElement obj = ((JsonObject) element).get(key);
-        return obj != null ? obj.toString().replaceAll("\"", "") : null;
+        return obj != null ? obj.toString().replace("\"", "") : null;
     }
 
     @Override
@@ -434,7 +443,7 @@ public class BungeeMethods implements MethodInterface {
 
     @Override
     public void log(String msg) {
-        ProxyServer.getInstance().getConsole().sendMessage(TextComponent.fromLegacyText(msg.replaceAll("&", "§")));
+        ProxyServer.getInstance().getConsole().sendMessage(TextComponent.fromLegacyText(ChatColor.translateAlternateColorCodes('&', msg)));
     }
 
     @Override
