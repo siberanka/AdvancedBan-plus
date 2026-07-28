@@ -74,9 +74,6 @@
                     <useSystemClassLoader>false</useSystemClassLoader>
                     <skipTests>${skipTests}</skipTests>
                     <trimStackTrace>${trimStackTrace}</trimStackTrace>
-                    <systemPropertyVariables>
-                        <java.io.tmpdir>${project.build.directory}/test-tmp</java.io.tmpdir>
-                    </systemPropertyVariables>
                 </configuration>
                 <dependencies>
                     <dependency>
