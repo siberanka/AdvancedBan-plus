@@ -2,10 +2,13 @@ package me.leoko.advancedban;
 
 import java.io.File;
 
+import me.leoko.advancedban.manager.DatabaseManager;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Created by Leo on 07.08.2017.
@@ -31,6 +34,13 @@ public class DatabaseTest {
 //        DatabaseManager.get().setup(true);
 //        assertFalse("Because of a failed connection MySQL should be disabled", DatabaseManager.get().isUseMySQL() );
 //        assertTrue("MySQL should be failed as the connection can not succeed", DatabaseManager.get().isFailedMySQL());
+    }
+
+    @Test
+    public void shouldRebuildOperationalStateOnReload() {
+        assertTrue(Universal.get().reload());
+        assertTrue(Universal.get().isOperational());
+        assertTrue(DatabaseManager.get().isConnectionValid());
     }
 
     @AfterAll

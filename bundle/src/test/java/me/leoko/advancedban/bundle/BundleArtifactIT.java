@@ -39,7 +39,7 @@ class BundleArtifactIT {
 
             String velocityJson = readText(jar, "velocity-plugin.json");
             assertTrue(velocityJson.contains("\"siberanka\""));
-            assertTrue(velocityJson.contains("\"version\": \"2026.07.28.1\""));
+            assertTrue(velocityJson.contains("\"version\": \"2026.07.28.2\""));
 
             assertOwnAndShadedClassesRunOnJava11(jar);
         }

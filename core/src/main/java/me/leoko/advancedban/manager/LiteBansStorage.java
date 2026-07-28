@@ -7,7 +7,11 @@ import me.leoko.advancedban.utils.PunishmentType;
 import me.leoko.advancedban.utils.SQLQuery;
 import me.leoko.advancedban.utils.Security;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -104,57 +108,61 @@ final class LiteBansStorage {
         String reason = safeStorage(punishment.getReason(), 2048);
         boolean ipBan = punishment.getType().isIpOrientated();
 
-        if (punishment.getType() == PunishmentType.NOTE) {
-            databaseManager.executeRawStatement(insertSql(table,
-                    "uuid, ip, reason, banned_by_uuid, banned_by_name, time, until, template, server_scope, server_origin, silent, ipban, ipban_wildcard, active"),
-                    uuid, ip, reason, operator, operator, punishment.getStart(), punishment.getEnd(), 255,
-                    Database.ANY_SERVER_SCOPE, "AdvancedBan", silent, ipBan, false, true);
-        } else if (punishment.getType() == PunishmentType.KICK) {
-            databaseManager.executeRawStatement(insertSql(table,
-                    "uuid, ip, reason, banned_by_uuid, banned_by_name, time, until, template, server_scope, server_origin, silent, ipban, ipban_wildcard, active"),
-                    uuid, ip, reason, operator, operator, punishment.getStart(), punishment.getEnd(), 255,
-                    Database.ANY_SERVER_SCOPE, "AdvancedBan", silent, ipBan, false, true);
-        } else {
-            String columns = punishment.getType().getBasic() == PunishmentType.WARNING
-                    ? "uuid, ip, reason, banned_by_uuid, banned_by_name, time, until, template, server_scope, server_origin, silent, ipban, ipban_wildcard, active, warned"
-                    : "uuid, ip, reason, banned_by_uuid, banned_by_name, time, until, template, server_scope, server_origin, silent, ipban, ipban_wildcard, active";
-            if (punishment.getType().getBasic() == PunishmentType.WARNING) {
-                databaseManager.executeRawStatement(insertSql(table, columns),
-                        uuid, ip, reason, operator, operator, punishment.getStart(), punishment.getEnd(), 255,
-                        Database.ANY_SERVER_SCOPE, "AdvancedBan", silent, ipBan, false, true, false);
-            } else {
-                databaseManager.executeRawStatement(insertSql(table, columns),
-                        uuid, ip, reason, operator, operator, punishment.getStart(), punishment.getEnd(), 255,
-                        Database.ANY_SERVER_SCOPE, "AdvancedBan", silent, ipBan, false, true);
+        boolean warning = punishment.getType().getBasic() == PunishmentType.WARNING;
+        String columns = warning
+                ? "uuid, ip, reason, banned_by_uuid, banned_by_name, time, until, template, server_scope, server_origin, silent, ipban, ipban_wildcard, active, warned"
+                : "uuid, ip, reason, banned_by_uuid, banned_by_name, time, until, template, server_scope, server_origin, silent, ipban, ipban_wildcard, active";
+        List<Object> values = new ArrayList<>();
+        values.add(uuid);
+        values.add(ip);
+        values.add(reason);
+        values.add(operator);
+        values.add(operator);
+        values.add(punishment.getStart());
+        values.add(punishment.getEnd());
+        values.add(255);
+        values.add(Database.ANY_SERVER_SCOPE);
+        values.add("AdvancedBan");
+        values.add(silent);
+        values.add(ipBan);
+        values.add(false);
+        values.add(true);
+        if (warning) {
+            values.add(false);
+        }
+
+        return databaseManager.inTransaction(connection -> {
+            if ((punishment.getType().getBasic() == PunishmentType.BAN
+                    || punishment.getType().getBasic() == PunishmentType.MUTE)
+                    && hasActiveDuplicate(connection, table, uuid, ip)) {
+                throw new SQLException("Concurrent duplicate LiteBans punishment.");
             }
-        }
-
-        int id = resolveInsertedId(table, punishment, uuid, ip);
-        if (id != -1) {
-            upsertMeta(table, id, punishment);
-            rememberIdentity(punishment.getName(), uuid, ip);
-        }
-        return id;
+            int id = insertReturningId(connection, insertSql(table, columns), values.toArray());
+            upsertMeta(connection, table, id, punishment);
+            rememberIdentity(connection, punishment.getName(), uuid, ip);
+            return id;
+        }, -1);
     }
 
-    void revoke(Punishment punishment, String who) {
+    boolean revoke(Punishment punishment, String who) {
         String table = tableFor(punishment.getType());
         if (table == null || punishment.getId() < 0) {
-            return;
+            return false;
         }
-        databaseManager.executeRawStatement("UPDATE " + q(table)
-                        + " SET active = ?, removed_by_name = ?, removed_by_uuid = ?, removed_by_reason = ? WHERE id = ?",
+        return databaseManager.executeUpdateRawStatement("UPDATE " + q(table)
+                        + " SET active = ?, removed_by_name = ?, removed_by_uuid = ?, removed_by_reason = ?,"
+                        + " removed_by_date = CURRENT_TIMESTAMP WHERE id = ? AND active = ?",
                 false, safeStorage(who == null ? "AdvancedBan" : who, 128), safeStorage(who == null ? "AdvancedBan" : who, 36),
-                "Removed by AdvancedBan", punishment.getId());
+                "Removed by AdvancedBan", punishment.getId(), true) == 1;
     }
 
-    void updateReason(Punishment punishment, String reason) {
+    boolean updateReason(Punishment punishment, String reason) {
         String table = tableFor(punishment.getType());
         if (table == null || punishment.getId() < 0) {
-            return;
+            return false;
         }
-        databaseManager.executeRawStatement("UPDATE " + q(table) + " SET reason = ? WHERE id = ?",
-                safeStorage(reason, 2048), punishment.getId());
+        return databaseManager.executeUpdateRawStatement("UPDATE " + q(table) + " SET reason = ? WHERE id = ?",
+                safeStorage(reason, 2048), punishment.getId()) == 1;
     }
 
     private ResultSet exact(Object... parameters) {
@@ -288,41 +296,70 @@ final class LiteBansStorage {
         }
     }
 
-    private int resolveInsertedId(String table, Punishment punishment, String uuid, String ip) {
-        try (ResultSet rs = databaseManager.executeRawResultStatement(
-                "SELECT id FROM " + q(table) + " WHERE (uuid = ? OR ip = ?) AND time = ? ORDER BY id DESC LIMIT 1",
-                uuid, ip, punishment.getStart())) {
-            if (rs != null && rs.next()) {
-                long id = rs.getLong("id");
-                return id > Integer.MAX_VALUE ? -1 : (int) id;
+    private int insertReturningId(Connection connection, String sql, Object... parameters) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            DatabaseManager.bind(statement, parameters);
+            if (statement.executeUpdate() != 1) {
+                throw new SQLException("Unexpected affected row count while storing LiteBans punishment.");
             }
-        } catch (Exception ex) {
-            Universal.get().debugException(ex);
+            try (ResultSet keys = statement.getGeneratedKeys()) {
+                if (!keys.next()) {
+                    throw new SQLException("LiteBans punishment insert did not return an id.");
+                }
+                long id = keys.getLong(1);
+                if (id < 0L || id > Integer.MAX_VALUE) {
+                    throw new SQLException("LiteBans punishment id exceeds the supported range.");
+                }
+                return (int) id;
+            }
         }
-        return -1;
     }
 
-    private void upsertMeta(String table, int id, Punishment punishment) {
-        databaseManager.executeRawStatement("DELETE FROM " + q(META_TABLE) + " WHERE table_name = ? AND punishment_id = ?",
-                table, id);
-        databaseManager.executeRawStatement(insertSql(META_TABLE, "table_name, punishment_id, name, calculation, type"),
-                table, id, safeStorage(punishment.getName(), 16), safeStorage(punishment.getCalculation(), 50), punishment.getType().name());
+    private boolean hasActiveDuplicate(Connection connection, String table, String uuid, String ip)
+            throws SQLException {
+        String sql = "SELECT id FROM " + q(table)
+                + " WHERE (uuid = ? OR ip = ?) AND active = ? AND (until < 1 OR until > ?)";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            DatabaseManager.bind(statement, uuid, ip, true, TimeManager.getTime());
+            try (ResultSet result = statement.executeQuery()) {
+                return result.next();
+            }
+        }
     }
 
-    private void rememberIdentity(String name, String uuid, String ip) {
+    private void upsertMeta(Connection connection, String table, int id, Punishment punishment) throws SQLException {
+        executeUpdate(connection, "DELETE FROM " + q(META_TABLE)
+                + " WHERE table_name = ? AND punishment_id = ?", table, id);
+        executeUpdate(connection, insertSql(META_TABLE,
+                        "table_name, punishment_id, name, calculation, type"),
+                table, id, safeStorage(punishment.getName(), 16),
+                safeStorage(punishment.getCalculation(), 50), punishment.getType().name());
+    }
+
+    private void rememberIdentity(Connection connection, String name, String uuid, String ip) throws SQLException {
         if (name == null || name.isEmpty()) {
             return;
         }
         String safeName = safeStorage(name, 16);
         String safeUuid = safeStorage(uuid == null ? "#" : uuid, 36);
         String safeIp = safeStorage(ip == null ? "#" : ip, 45);
-        databaseManager.executeRawStatement(insertSql(PREFIX + "history", "name, uuid, ip"), safeName, safeUuid, safeIp);
+        executeUpdate(connection, insertSql(PREFIX + "history", "name, uuid, ip"),
+                safeName, safeUuid, safeIp);
+    }
+
+    private void executeUpdate(Connection connection, String sql, Object... parameters) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            DatabaseManager.bind(statement, parameters);
+            if (statement.executeUpdate() != 1 && sql.startsWith("INSERT")) {
+                throw new SQLException("Unexpected affected row count in LiteBans transaction.");
+            }
+        }
     }
 
     private void createPunishmentTable(String suffix, boolean removable, boolean warned) {
         String table = PREFIX + suffix;
         if (databaseManager.isUseMySQL()) {
-            databaseManager.executeRawStatement("CREATE TABLE IF NOT EXISTS " + q(table)
+            databaseManager.executeRequiredRawStatement("CREATE TABLE IF NOT EXISTS " + q(table)
                     + " (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,"
                     + " uuid VARCHAR(36) NULL, ip VARCHAR(45) NULL, reason VARCHAR(2048) NULL,"
                     + " banned_by_uuid VARCHAR(36) NULL, banned_by_name VARCHAR(128) NULL,"
@@ -333,7 +370,7 @@ final class LiteBansStorage {
                     + (warned ? " warned BIT NOT NULL," : "")
                     + " PRIMARY KEY (id))");
         } else {
-            databaseManager.executeRawStatement("CREATE TABLE IF NOT EXISTS " + table
+            databaseManager.executeRequiredRawStatement("CREATE TABLE IF NOT EXISTS " + table
                     + " (id INTEGER IDENTITY PRIMARY KEY,"
                     + " uuid VARCHAR(36), ip VARCHAR(45), reason VARCHAR(2048),"
                     + " banned_by_uuid VARCHAR(36), banned_by_name VARCHAR(128),"
@@ -352,11 +389,11 @@ final class LiteBansStorage {
 
     private void createHistoryTable() {
         if (databaseManager.isUseMySQL()) {
-            databaseManager.executeRawStatement("CREATE TABLE IF NOT EXISTS " + q(PREFIX + "history")
+            databaseManager.executeRequiredRawStatement("CREATE TABLE IF NOT EXISTS " + q(PREFIX + "history")
                     + " (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,"
                     + " name VARCHAR(16) NOT NULL, uuid VARCHAR(36) NOT NULL, ip VARCHAR(45) NOT NULL, PRIMARY KEY (id))");
         } else {
-            databaseManager.executeRawStatement("CREATE TABLE IF NOT EXISTS " + PREFIX + "history"
+            databaseManager.executeRequiredRawStatement("CREATE TABLE IF NOT EXISTS " + PREFIX + "history"
                     + " (id INTEGER IDENTITY PRIMARY KEY, date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
                     + " name VARCHAR(16), uuid VARCHAR(36), ip VARCHAR(45))");
         }
@@ -364,33 +401,33 @@ final class LiteBansStorage {
 
     private void createServersTable() {
         if (databaseManager.isUseMySQL()) {
-            databaseManager.executeRawStatement("CREATE TABLE IF NOT EXISTS " + q(PREFIX + "servers")
+            databaseManager.executeRequiredRawStatement("CREATE TABLE IF NOT EXISTS " + q(PREFIX + "servers")
                     + " (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, name VARCHAR(32) NOT NULL,"
                     + " uuid VARCHAR(32) NOT NULL UNIQUE, date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (id))");
         } else {
-            databaseManager.executeRawStatement("CREATE TABLE IF NOT EXISTS " + PREFIX + "servers"
+            databaseManager.executeRequiredRawStatement("CREATE TABLE IF NOT EXISTS " + PREFIX + "servers"
                     + " (id INTEGER IDENTITY PRIMARY KEY, name VARCHAR(32), uuid VARCHAR(32), date TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
         }
     }
 
     private void createAllowTable() {
         if (databaseManager.isUseMySQL()) {
-            databaseManager.executeRawStatement("CREATE TABLE IF NOT EXISTS " + q(PREFIX + "allow")
+            databaseManager.executeRequiredRawStatement("CREATE TABLE IF NOT EXISTS " + q(PREFIX + "allow")
                     + " (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, uuid BINARY(16) NOT NULL, type TINYINT UNSIGNED NOT NULL, PRIMARY KEY (id))");
         } else {
-            databaseManager.executeRawStatement("CREATE TABLE IF NOT EXISTS " + PREFIX + "allow"
+            databaseManager.executeRequiredRawStatement("CREATE TABLE IF NOT EXISTS " + PREFIX + "allow"
                     + " (id INTEGER IDENTITY PRIMARY KEY, uuid VARBINARY(16), type INTEGER)");
         }
     }
 
     private void createMetaTable() {
         if (databaseManager.isUseMySQL()) {
-            databaseManager.executeRawStatement("CREATE TABLE IF NOT EXISTS " + q(META_TABLE)
+            databaseManager.executeRequiredRawStatement("CREATE TABLE IF NOT EXISTS " + q(META_TABLE)
                     + " (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, table_name VARCHAR(64) NOT NULL,"
                     + " punishment_id BIGINT NOT NULL, name VARCHAR(16) NULL, calculation VARCHAR(50) NULL,"
                     + " type VARCHAR(16) NULL, PRIMARY KEY (id))");
         } else {
-            databaseManager.executeRawStatement("CREATE TABLE IF NOT EXISTS " + META_TABLE
+            databaseManager.executeRequiredRawStatement("CREATE TABLE IF NOT EXISTS " + META_TABLE
                     + " (id INTEGER IDENTITY PRIMARY KEY, table_name VARCHAR(64), punishment_id BIGINT,"
                     + " name VARCHAR(16), calculation VARCHAR(50), type VARCHAR(16))");
         }

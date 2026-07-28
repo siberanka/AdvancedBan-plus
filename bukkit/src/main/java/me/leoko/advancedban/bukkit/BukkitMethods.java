@@ -93,22 +93,8 @@ public class BukkitMethods implements MethodInterface {
     @Override
     public String getFromUrlJson(String url, String key) {
         try {
-            HttpURLConnection request = (HttpURLConnection) new URL(url).openConnection();
-            request.setConnectTimeout(Security.getInt("Security.HttpConnectTimeoutMillis", 3000));
-            request.setReadTimeout(Security.getInt("Security.HttpReadTimeoutMillis", 3000));
-            request.setUseCaches(false);
-            request.connect();
-
-            JSONParser jp = new JSONParser();
-            JSONObject json = (JSONObject) jp.parse(new InputStreamReader(request.getInputStream()));
-
-            String[] keys = key.split("\\|");
-            for (int i = 0; i < keys.length - 1; i++) {
-                json = (JSONObject) json.get(keys[i]);
-            }
-
-            return json.get(keys[keys.length - 1]).toString();
-        } catch (Exception exc) {
+            return Security.fetchJsonValue(url, key);
+        } catch (IOException | RuntimeException exc) {
             return null;
         }
     }
@@ -366,28 +352,17 @@ public class BukkitMethods implements MethodInterface {
     @Override
     public String parseJSON(InputStreamReader json, String key) {
         try {
-            Object parsed = new JSONParser().parse(json);
-            Object value = parsed instanceof JSONObject ? ((JSONObject) parsed).get(key) : null;
-            return value == null ? null : Security.limit(String.valueOf(value), 8192);
-        } catch (ParseException | IOException e) {
+            return Security.parseJsonValue(json, key);
+        } catch (IOException e) {
             Universal.get().logMessage("Console.JsonParseFailed", "&cFailed to parse JSON response.");
-            Universal.get().debugException(e instanceof Exception ? (Exception) e : new RuntimeException(e));
+            Universal.get().debugException(e);
             return null;
         }
     }
 
     @Override
     public String parseJSON(String json, String key) {
-        if (json == null || key == null || json.length() > 65_536 || key.length() > 128) {
-            return null;
-        }
-        try {
-            Object parsed = new JSONParser().parse(json);
-            Object value = parsed instanceof JSONObject ? ((JSONObject) parsed).get(key) : null;
-            return value == null ? null : Security.limit(String.valueOf(value), 8192);
-        } catch (ParseException | RuntimeException e) {
-            return null;
-        }
+        return Security.parseJsonValue(json, key);
     }
 
     @Override

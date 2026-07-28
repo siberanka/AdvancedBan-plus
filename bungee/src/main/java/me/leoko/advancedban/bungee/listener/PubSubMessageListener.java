@@ -9,6 +9,8 @@ import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.plugin.Listener;
 import net.md_5.bungee.event.EventHandler;
 
+import java.util.Locale;
+
 /**
  *
  * @author Beelzebu
@@ -30,7 +32,7 @@ public class PubSubMessageListener implements Listener {
         if (channel.equals("advancedban:main")) {
             String[] msg = message.split(" ", 3);
             if (message.startsWith("kick ")) {
-                if (msg.length < 3) {
+                if (msg.length < 3 || !Security.isSafePlayerName(msg[1])) {
                     return;
                 }
                 ProxiedPlayer player = ProxyServer.getInstance().getPlayer(msg[1]);
@@ -38,7 +40,7 @@ public class PubSubMessageListener implements Listener {
                     player.disconnect(msg[2]);
                 }
             } else if (message.startsWith("notification ")) {
-                if (msg.length < 3) {
+                if (msg.length < 3 || !msg[1].matches("[A-Za-z0-9_.-]{1,128}")) {
                     return;
                 }
                 for (ProxiedPlayer pp : ProxyServer.getInstance().getPlayers()) {
@@ -47,7 +49,8 @@ public class PubSubMessageListener implements Listener {
                     }
                 }
             } else if (message.startsWith("message ")) {
-                if (msg.length < 3) {
+                if (msg.length < 3
+                        || (!Security.isSafePlayerName(msg[1]) && !msg[1].equalsIgnoreCase("CONSOLE"))) {
                     return;
                 }
                 ProxiedPlayer player = ProxyServer.getInstance().getPlayer(msg[1]);
@@ -60,11 +63,11 @@ public class PubSubMessageListener implements Listener {
             }
         } else if (channel.equals("advancedban:connection")) {
             String[] msg = message.split(",", 2);
-            if (msg.length < 2 || !Security.isSafePlayerName(msg[0])) {
+            if (msg.length < 2 || !Security.isSafePlayerName(msg[0])
+                    || !Security.isValidIpAddress(msg[1])) {
                 return;
             }
-            Universal.get().getIps().remove(msg[0].toLowerCase());
-            Universal.get().getIps().put(msg[0].toLowerCase(), msg[1]);
+            Universal.get().getIps().put(msg[0].toLowerCase(Locale.ROOT), msg[1]);
         }
     }
 }

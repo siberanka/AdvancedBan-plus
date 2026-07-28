@@ -209,7 +209,8 @@ public class DiscordWebhookManager {
         if (payload == null) {
             return;
         }
-        mi.runAsync(() -> post(webhookUrl, payload));
+        String version = Security.limit(mi.getVersion(), 64);
+        mi.runAsync(() -> post(webhookUrl, payload, version));
     }
 
     private String buildPayload(String event, String... parameters) {
@@ -257,16 +258,17 @@ public class DiscordWebhookManager {
         return json;
     }
 
-    private void post(String webhookUrl, String payload) {
+    private void post(String webhookUrl, String payload, String version) {
         try {
             HttpURLConnection connection = (HttpURLConnection) new URL(webhookUrl).openConnection();
             connection.setRequestMethod("POST");
             connection.setConnectTimeout(getInt("DiscordWebhook.ConnectTimeoutMillis", Security.getInt("Security.HttpConnectTimeoutMillis", 3000)));
             connection.setReadTimeout(getInt("DiscordWebhook.ReadTimeoutMillis", Security.getInt("Security.HttpReadTimeoutMillis", 3000)));
             connection.setUseCaches(false);
+            connection.setInstanceFollowRedirects(false);
             connection.setDoOutput(true);
             connection.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-            connection.setRequestProperty("User-Agent", "AdvancedBanPlus/" + Security.limit(Universal.get().getMethods().getVersion(), 64));
+            connection.setRequestProperty("User-Agent", "AdvancedBanPlus/" + version);
             byte[] bytes = payload.getBytes(StandardCharsets.UTF_8);
             try (OutputStream output = connection.getOutputStream()) {
                 output.write(bytes);
@@ -285,12 +287,19 @@ public class DiscordWebhookManager {
         if (throttleMillis <= 0L) {
             return true;
         }
+        long boundedThrottle = Math.min(throttleMillis, 3_600_000L);
         long now = System.currentTimeMillis();
-        Long last = attemptThrottle.put(key, now);
-        if (last == null || now - last >= throttleMillis) {
-            if (attemptThrottle.size() > Math.max(128, getInt("StaffNotifications.MaxThrottleEntries", 1024))) {
-                attemptThrottle.entrySet().removeIf(entry -> now - entry.getValue() > throttleMillis * 2L);
+        int maxEntries = Math.max(128, Math.min(100_000,
+                getInt("StaffNotifications.MaxThrottleEntries", 1024)));
+        if (!attemptThrottle.containsKey(key) && attemptThrottle.size() >= maxEntries) {
+            long expiry = Math.min(7_200_000L, boundedThrottle * 2L);
+            attemptThrottle.entrySet().removeIf(entry -> now - entry.getValue() > expiry);
+            if (attemptThrottle.size() >= maxEntries) {
+                return false;
             }
+        }
+        Long last = attemptThrottle.put(key, now);
+        if (last == null || now - last >= boundedThrottle) {
             return true;
         }
         attemptThrottle.put(key, last);

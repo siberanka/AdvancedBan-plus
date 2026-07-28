@@ -29,23 +29,6 @@ public class BukkitMain extends JavaPlugin {
         this.getServer().getPluginManager().registerEvents(new InternalListener(), this);
         registerVoicechatHook();
 
-        Bukkit.getOnlinePlayers().forEach(player -> {
-            String name = player.getName();
-            java.util.UUID uuid = player.getUniqueId();
-            String ip = player.getAddress() == null || player.getAddress().getAddress() == null
-                    ? null : player.getAddress().getAddress().getHostAddress();
-            Universal.get().getMethods().runAsync(() -> {
-                if (!Universal.get().isOperational()) {
-                    return;
-                }
-                me.leoko.advancedban.manager.UUIDManager.get().supplyInternUUID(name, uuid);
-                String denial = Universal.get().callConnection(name, ip);
-                if (denial != null) {
-                    Universal.get().getMethods().kickPlayer(name, denial);
-                }
-            });
-        });
-
     }
 
     @Override

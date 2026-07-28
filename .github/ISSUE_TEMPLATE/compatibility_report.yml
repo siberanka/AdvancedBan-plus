@@ -7,7 +7,7 @@ body:
     id: plugin-version
     attributes:
       label: AdvancedBan Plus version
-      placeholder: "2026.07.28.1"
+      placeholder: "2026.07.28.2"
     validations:
       required: true
   - type: dropdown

@@ -46,9 +46,9 @@ public class Punishment {
         this.id = id;
     }
 
-    public static void create(String name, String target, String reason, String operator, PunishmentType type, Long end,
-                              String calculation, boolean silent) {
-        new Punishment(name, target, reason, operator, end == -1 ? type.getPermanent() : type,
+    public static boolean create(String name, String target, String reason, String operator, PunishmentType type, Long end,
+                                 String calculation, boolean silent) {
+        return new Punishment(name, target, reason, operator, end == -1 ? type.getPermanent() : type,
                 TimeManager.getTime(), end, calculation, -1)
                 .create(silent);
     }
@@ -68,27 +68,27 @@ public class Punishment {
         return format.format(new Date(date));
     }
 
-    public void create() {
-        create(false);
+    public boolean create() {
+        return create(false);
     }
 
-    public void create(boolean silent) {
+    public boolean create(boolean silent) {
         synchronized (persistenceLock()) {
-            createLocked(silent);
+            return createLocked(silent);
         }
     }
 
-    private void createLocked(boolean silent) {
+    private boolean createLocked(boolean silent) {
         if (id != -1) {
             Universal.get().logMessage("Console.PunishmentOverwriteBlocked", "&cAdvancedBan blocked an attempt to overwrite an existing punishment.");
             Universal.get().debug("Failed at: " + toString());
-            return;
+            return false;
         }
 
         if (uuid == null) {
             Universal.get().logMessage("Console.PunishmentMissingUuid", "&cAdvancedBan did not save %TYPE% because there is no fetched UUID.", "TYPE", getType().getName());
             Universal.get().debug("Failed at: " + toString());
-            return;
+            return false;
         }
 
         PunishmentType basicType = getType().getBasic();
@@ -97,7 +97,7 @@ public class Punishment {
             Universal.get().logMessage("Console.PunishmentDuplicateBlocked",
                     "&cAdvancedBan blocked a concurrent duplicate %TYPE% for %NAME%.",
                     "TYPE", basicType.getName(), "NAME", getName());
-            return;
+            return false;
         }
 
         final int cWarnings = getType().getBasic() == PunishmentType.WARNING ? (PunishmentManager.get().getCurrentWarns(getUuid()) + 1) : 0;
@@ -107,15 +107,22 @@ public class Punishment {
             Universal.get().logMessage("Console.PunishmentTransactionFailed",
                     "&cPunishment was not created because its database transaction failed.");
             Universal.get().debug("Failed at: " + toString());
-            return;
+            return false;
         }
 
         MethodInterface methods = methods();
         if (!silent) {
-            announce(cWarnings);
+            runPostCommit(() -> announce(cWarnings));
         }
 
-        methods.runSync(() -> {
+        if (PunishmentManager.get().isCached(getUuid())) {
+            if (getType() != PunishmentType.KICK) {
+                PunishmentManager.get().getLoadedPunishments(false).add(this);
+            }
+            PunishmentManager.get().getLoadedHistory().add(this);
+        }
+
+        runPostCommit(() -> methods.runSync(() -> {
             if (methods.isOnline(getName())) {
                 final Object player = methods.getPlayer(getName());
                 if (getType().getBasic() == PunishmentType.BAN || getType() == PunishmentType.KICK) {
@@ -126,16 +133,13 @@ public class Punishment {
                             methods.sendMessage(player, str);
                         }
                     }
-                    PunishmentManager.get().getLoadedPunishments(false).add(this);
                 }
             }
-        });
+        }));
 
-        PunishmentManager.get().getLoadedHistory().add(this);
-
-        methods.callPunishmentEvent(this);
-        LiteBansCompatibility.entryAdded(this);
-        DiscordWebhookManager.get().punishmentCreated(this, silent);
+        runPostCommit(() -> methods.callPunishmentEvent(this));
+        runPostCommit(() -> LiteBansCompatibility.entryAdded(this));
+        runPostCommit(() -> DiscordWebhookManager.get().punishmentCreated(this, silent));
 
         if (getType().getBasic() == PunishmentType.WARNING) {
             String cmd = null;
@@ -149,19 +153,22 @@ public class Punishment {
                         .replace("%PLAYER%", Security.sanitizeCommandPlaceholder(getName()))
                         .replace("%COUNT%", cWarnings + "")
                         .replace("%REASON%", Security.sanitizeCommandPlaceholder(getReason()));
-                methods.runSync(() -> {
+                runPostCommit(() -> methods.runSync(() -> {
                     methods.executeCommand(finalCmd);
                     Universal.get().logMessage("Console.WarnActionExecuted", "Executing command: %COMMAND%", "COMMAND", finalCmd);
-                });
+                }));
             }
         }
+        return true;
     }
 
-    public void updateReason(String reason) {
-        this.reason = reason;
-
-        if (id != -1) {
-            DatabaseManager.get().updatePunishmentReason(this, reason);
+    public boolean updateReason(String reason) {
+        synchronized (persistenceLock()) {
+            if (id == -1 || !DatabaseManager.get().updatePunishmentReason(this, reason)) {
+                return false;
+            }
+            this.reason = reason;
+            return true;
         }
     }
 
@@ -183,23 +190,34 @@ public class Punishment {
         notification.forEach(message -> LiteBansCompatibility.broadcastSent(message, getType().getName()));
     }
 
-    public void delete() {
-        delete(null, false, true);
+    public boolean delete() {
+        return delete(null, false, true);
     }
 
-    public void delete(String who, boolean massClear, boolean removeCache) {
+    public boolean delete(String who, boolean massClear, boolean removeCache) {
+        synchronized (persistenceLock()) {
+            return deleteLocked(who, massClear, removeCache);
+        }
+    }
+
+    private boolean deleteLocked(String who, boolean massClear, boolean removeCache) {
         if (getType() == PunishmentType.KICK) {
             Universal.get().logMessage("Console.PunishmentDeleteKickBlocked", "&cFailed deleting: kicks cannot be deleted.");
-            return;
+            return false;
         }
 
         if (id == -1) {
             Universal.get().logMessage("Console.PunishmentDeleteNotCreated", "&cFailed deleting: the punishment is not created yet.");
             Universal.get().debug("Failed at: " + toString());
-            return;
+            return false;
         }
 
-        DatabaseManager.get().revokePunishment(this, who);
+        if (!DatabaseManager.get().revokePunishment(this, who)) {
+            Universal.get().logMessage("Console.PunishmentRevokeFailed",
+                    "&cPunishment #%ID% was not revoked because the database update failed.",
+                    "ID", String.valueOf(id));
+            return false;
+        }
 
         if (removeCache) {
             PunishmentManager.get().getLoadedPunishments(false).remove(this);
@@ -208,15 +226,17 @@ public class Punishment {
         if (who != null) {
             String message = MessageManager.getMessage("Un" + getType().getBasic().getConfSection("Notification"),
                     true, "OPERATOR", who, "NAME", getName());
-            methods().notify("ab.undoNotify." + getType().getBasic().getName(), Collections.singletonList(message));
+            runPostCommit(() -> methods().notify("ab.undoNotify." + getType().getBasic().getName(),
+                    Collections.singletonList(message)));
 
             Universal.get().debug(who + " is deleting a punishment");
         }
 
         Universal.get().debug("Deleted punishment " + getId() + " from " + getName() + " punishment reason: " + getReason());
-        methods().callRevokePunishmentEvent(this, massClear);
-        LiteBansCompatibility.entryRemoved(this);
-        DiscordWebhookManager.get().punishmentRevoked(this, who, massClear);
+        runPostCommit(() -> methods().callRevokePunishmentEvent(this, massClear));
+        runPostCommit(() -> LiteBansCompatibility.entryRemoved(this));
+        runPostCommit(() -> DiscordWebhookManager.get().punishmentRevoked(this, who, massClear));
+        return true;
     }
 
     public List<String> getLayout() {
@@ -239,6 +259,14 @@ public class Punishment {
     private Object persistenceLock() {
         int hash = 31 * String.valueOf(uuid).hashCode() + getType().getBasic().hashCode();
         return PERSISTENCE_LOCKS[(hash & Integer.MAX_VALUE) % PERSISTENCE_LOCKS.length];
+    }
+
+    private void runPostCommit(Runnable operation) {
+        try {
+            operation.run();
+        } catch (RuntimeException | LinkageError ex) {
+            Universal.get().debugThrowable(ex);
+        }
     }
 
     private static MethodInterface methods() {

@@ -18,7 +18,7 @@ public class DynamicDataSource {
             String usrName = mi.getString(mi.getMySQLFile(), "MySQL.Username", "Unknown");
             String password = mi.getString(mi.getMySQLFile(), "MySQL.Password", "Unknown");
             String properties = mi.getString(mi.getMySQLFile(), "MySQL.Properties", "verifyServerCertificate=false&useSSL=false&useUnicode=true&characterEncoding=utf8");
-            int port = mi.getInteger(mi.getMySQLFile(), "MySQL.Port", 3306);
+            int port = clamp(mi.getInteger(mi.getMySQLFile(), "MySQL.Port", 3306), 1, 65_535);
 
             try {
                 Class.forName("com.mysql.cj.jdbc.Driver");
@@ -38,18 +38,32 @@ public class DynamicDataSource {
                 dataFolder.mkdirs();
             }
             config.setDriverClassName(driverClassName);
-            config.setJdbcUrl("jdbc:hsqldb:file:" + mi.getDataFolder().getPath() + "/data/storage;hsqldb.lock_file=false;shutdown=true;hsqldb.write_delay=false");
+            config.setJdbcUrl("jdbc:hsqldb:file:" + mi.getDataFolder().getPath()
+                    + "/data/storage;shutdown=true;hsqldb.write_delay=false");
             config.setUsername("SA");
             config.setPassword("");
         }
-        config.setMaximumPoolSize(Security.getInt("Database.MaximumPoolSize", 10));
-        config.setMinimumIdle(Security.getInt("Database.MinimumIdle", 1));
-        config.setConnectionTimeout(Security.getInt("Database.ConnectionTimeoutMillis", 5000));
-        config.setValidationTimeout(Security.getInt("Database.ValidationTimeoutMillis", 3000));
-        config.setLeakDetectionThreshold(Security.getInt("Database.LeakDetectionThresholdMillis", 0));
+        int maximumPoolSize = clamp(Security.getInt("Database.MaximumPoolSize", 10), 1, 64);
+        int minimumIdle = clamp(Security.getInt("Database.MinimumIdle", 1), 0, maximumPoolSize);
+        long connectionTimeout = clamp(Security.getInt("Database.ConnectionTimeoutMillis", 5000), 250, 60_000);
+        long validationTimeout = clamp(Security.getInt("Database.ValidationTimeoutMillis", 3000), 250,
+                (int) Math.min(connectionTimeout, 60_000L));
+        long leakDetection = Security.getInt("Database.LeakDetectionThresholdMillis", 0);
+        if (leakDetection != 0L) {
+            leakDetection = Math.max(2000L, Math.min(600_000L, leakDetection));
+        }
+        config.setMaximumPoolSize(maximumPoolSize);
+        config.setMinimumIdle(minimumIdle);
+        config.setConnectionTimeout(connectionTimeout);
+        config.setValidationTimeout(validationTimeout);
+        config.setLeakDetectionThreshold(leakDetection);
     }
 
     public HikariDataSource generateDataSource(){
         return new HikariDataSource(config);
+    }
+
+    private int clamp(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
     }
 }

@@ -20,6 +20,7 @@ import net.md_5.bungee.event.EventHandler;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
 /**
  *
@@ -47,6 +48,10 @@ public class InternalListener implements Listener {
         if (e.getSender() instanceof ProxiedPlayer) {
             return;
         }
+        e.setCancelled(true);
+        if (!Security.getBoolean("Security.PluginMessaging.AcceptRemotePunishments", false)) {
+            return;
+        }
         if (e.getData() == null || e.getData().length > Security.DEFAULT_MAX_TOTAL_COMMAND_LENGTH) {
             return;
         }
@@ -64,18 +69,28 @@ public class InternalListener implements Listener {
                         universal.debug("Rejected malformed punishment plugin message.");
                         return;
                     }
-                    new Punishment(
+                    PunishmentType type = readType(punishment);
+                    long now = TimeManager.getTime();
+                    long duration = punishment.get("end").getAsLong();
+                    long end = duration == -1L ? -1L : now + duration;
+                    boolean created = new Punishment(
                             punishment.get("name").getAsString(),
                             Security.normalizeUuid(punishment.get("uuid").getAsString()),
-                            punishment.get("reason").getAsString(),
+                            Security.sanitizeReason(punishment.get("reason").getAsString()),
                             punishment.get("operator") != null ? punishment.get("operator").getAsString() : "CONSOLE",
-                            PunishmentType.valueOf(punishment.get("punishmenttype").getAsString().toUpperCase()),
-                            punishment.get("start") != null ? punishment.get("start").getAsLong() : TimeManager.getTime(),
-                            TimeManager.getTime() + punishment.get("end").getAsLong(),
+                            type,
+                            now,
+                            end,
                             punishment.get("calculation") != null ? punishment.get("calculation").getAsString() : null,
                             -1
                     ).create(punishment.get("silent") != null && punishment.get("silent").getAsBoolean());
-                    universal.logMessage("Console.PluginMessagePunishmentCreated", "A punishment was created using PluginMessaging listener.");
+                    if (!created) {
+                        universal.logMessage("Console.PluginMessagePunishmentFailed",
+                                "A remote punishment was rejected before it could be committed.");
+                        return;
+                    }
+                    universal.logMessage("Console.PluginMessagePunishmentCreated",
+                            "A punishment was created using PluginMessaging listener.");
                     universal.debug(punishment.toString());
                     break;
                 default:
@@ -100,10 +115,26 @@ public class InternalListener implements Listener {
         String name = punishment.get("name").getAsString();
         String uuid = punishment.get("uuid").getAsString();
         String reason = punishment.get("reason").getAsString();
+        PunishmentType type = readType(punishment);
+        long duration = punishment.get("end").getAsLong();
+        String operator = punishment.has("operator") ? punishment.get("operator").getAsString() : "CONSOLE";
+        String calculation = punishment.has("calculation") ? punishment.get("calculation").getAsString() : "";
         return Security.isSafePlayerName(name)
-                && Security.isValidUuid(uuid)
+                && type != null
+                && (type.isIpOrientated() ? Security.isValidIpAddress(uuid) : Security.isValidUuid(uuid))
                 && Security.isReasonSafe(reason)
-                && Security.isReasonSafe(punishment.get("punishmenttype").getAsString());
+                && (duration == -1L || duration > 0L && duration <= 3_153_600_000_000L)
+                && operator != null && operator.length() <= 16
+                && calculation != null && calculation.length() <= 50;
+    }
+
+    private PunishmentType readType(JsonObject punishment) {
+        try {
+            return PunishmentType.valueOf(
+                    punishment.get("punishmenttype").getAsString().toUpperCase(Locale.ROOT));
+        } catch (RuntimeException ignored) {
+            return null;
+        }
     }
 
     public void sendToBukkit(String channel, List<String> messages) {

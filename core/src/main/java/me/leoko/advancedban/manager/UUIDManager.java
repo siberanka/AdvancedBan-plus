@@ -5,9 +5,6 @@ import me.leoko.advancedban.Universal;
 import me.leoko.advancedban.utils.Security;
 
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.util.*;
 import java.util.Map.Entry;
 
@@ -18,6 +15,7 @@ public class UUIDManager {
     private static UUIDManager instance = null;
     private FetcherMode mode;
     private final Map<String, String> activeUUIDs = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<String, String> activeNamesByUuid = new java.util.concurrent.ConcurrentHashMap<>();
     
     private MethodInterface mi() {
     	return Universal.get().getMethods();
@@ -68,7 +66,7 @@ public class UUIDManager {
      */
     public String getInitialUUID(String name) {
     	MethodInterface mi = mi();
-        name = name.toLowerCase();
+        name = name.toLowerCase(Locale.ROOT);
         if (!Security.isValidPlayerName(name)) {
             return null;
         }
@@ -77,8 +75,14 @@ public class UUIDManager {
 
         if (mode == FetcherMode.INTERN || mode == FetcherMode.MIXED) {
             String internUUID = mi.getInternUUID(name);
-            if (mode == FetcherMode.INTERN || internUUID != null)
+            if (internUUID != null && Security.isValidUuid(internUUID)) {
+                internUUID = Security.normalizeUuid(internUUID);
+                cache(name, internUUID);
                 return internUUID;
+            }
+            if (mode == FetcherMode.INTERN) {
+                return null;
+            }
         }
 
         String uuid = null;
@@ -107,6 +111,11 @@ public class UUIDManager {
                     "NAME", name, "URL", "", "KEY", "");
         }
 
+        if (!Security.isValidUuid(uuid)) {
+            return null;
+        }
+        uuid = Security.normalizeUuid(uuid);
+        cache(name, uuid);
         return uuid;
     }
 
@@ -118,18 +127,22 @@ public class UUIDManager {
      */
     public void supplyInternUUID(String name, UUID uuid) {
         if ((mode == FetcherMode.INTERN || mode == FetcherMode.MIXED) && Security.isValidPlayerName(name) && uuid != null) {
-            activeUUIDs.put(name.toLowerCase(Locale.ROOT), uuid.toString().replace("-", ""));
+            cache(name.toLowerCase(Locale.ROOT), uuid.toString().replace("-", ""));
         }
     }
 
     public void discard(String name) {
         if (name != null) {
-            activeUUIDs.remove(name.toLowerCase(Locale.ROOT));
+            String uuid = activeUUIDs.remove(name.toLowerCase(Locale.ROOT));
+            if (uuid != null) {
+                activeNamesByUuid.remove(uuid, name.toLowerCase(Locale.ROOT));
+            }
         }
     }
 
     public void clear() {
         activeUUIDs.clear();
+        activeNamesByUuid.clear();
     }
 
     /**
@@ -147,7 +160,11 @@ public class UUIDManager {
                     .replaceFirst(
                             "(\\p{XDigit}{8})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}+)", "$1-$2-$3-$4-$5");
 
-        return uuid.length() == 36 && uuid.contains("-") ? UUID.fromString(uuid) : null;
+        try {
+            return uuid.length() == 36 && uuid.contains("-") ? UUID.fromString(uuid) : null;
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
     }
 
     /**
@@ -172,7 +189,7 @@ public class UUIDManager {
         if (name == null) {
             return null;
         }
-        return activeUUIDs.get(name.toLowerCase());
+        return activeUUIDs.get(name.toLowerCase(Locale.ROOT));
     }
 
     /**
@@ -186,12 +203,7 @@ public class UUIDManager {
         if (uuid == null) {
             return null;
         }
-        for (Entry<String, String> rs : activeUUIDs.entrySet()) {
-            if (rs.getValue().equalsIgnoreCase(uuid)) {
-                return rs.getKey();
-            }
-        }
-        return null;
+        return activeNamesByUuid.get(Security.normalizeUuid(uuid));
     }
 
     /**
@@ -205,6 +217,10 @@ public class UUIDManager {
     	MethodInterface mi = mi();
         if (mode == FetcherMode.DISABLED)
             return uuid;
+        if (!Security.isValidUuid(uuid)) {
+            return null;
+        }
+        uuid = Security.normalizeUuid(uuid);
 
         if (mode == FetcherMode.INTERN || mode == FetcherMode.MIXED) {
             String internName = mi.getName(uuid);
@@ -220,42 +236,58 @@ public class UUIDManager {
         }
 
         try {
-            HttpURLConnection request = (HttpURLConnection) new URL("https://api.mojang.com/user/profiles/" + uuid + "/names").openConnection();
-            request.setConnectTimeout(Security.getInt("Security.HttpConnectTimeoutMillis", 3000));
-            request.setReadTimeout(Security.getInt("Security.HttpReadTimeoutMillis", 3000));
-            request.setUseCaches(false);
-            try (Scanner scanner = new Scanner(request.getInputStream(), "UTF-8")) {
-            String s = scanner.useDelimiter("\\A").next();
-            s = s.substring(s.lastIndexOf('{'), s.lastIndexOf('}') + 1);
-            return mi.parseJSON(s, "name");
+            String name = Security.fetchJsonValue(
+                    "https://sessionserver.mojang.com/session/minecraft/profile/" + uuid, "name");
+            if (Security.isValidPlayerName(name)) {
+                cache(name.toLowerCase(Locale.ROOT), uuid);
+                return name;
             }
-        } catch (Exception exc) {
+        } catch (IOException | RuntimeException exc) {
             return null;
         }
+        return null;
     }
 
 
 
     private String askAPI(String url, String name, String key) throws IOException {
-    	MethodInterface mi = mi();
-        name = name.toLowerCase();
-        HttpURLConnection request = (HttpURLConnection) new URL(url.replace("%NAME%", name).replace("%TIMESTAMP%", new Date().getTime() + "")).openConnection();
-        request.setConnectTimeout(Security.getInt("Security.HttpConnectTimeoutMillis", 3000));
-        request.setReadTimeout(Security.getInt("Security.HttpReadTimeoutMillis", 3000));
-        request.setUseCaches(false);
-        request.connect();
-
-        String uuid = mi.parseJSON(new InputStreamReader(request.getInputStream()), key);
+        name = name.toLowerCase(Locale.ROOT);
+        if (url == null || key == null) {
+            return null;
+        }
+        String requestUrl = url.replace("%NAME%", name)
+                .replace("%TIMESTAMP%", String.valueOf(System.currentTimeMillis()));
+        String uuid = Security.fetchJsonValue(requestUrl, key);
 
         if (uuid == null) {
             Universal.get().logMessage("Console.UUIDMissingKey",
                     "&cCould not find key '%KEY%' while fetching UUID of %NAME%.",
                     "NAME", name, "URL", url, "KEY", key);
-            Universal.get().debug("UUID response message: " + request.getResponseMessage());
-        } else {
-            activeUUIDs.put(name, uuid);
         }
         return uuid;
+    }
+
+    private void cache(String name, String uuid) {
+        if (!Security.isValidPlayerName(name) || !Security.isValidUuid(uuid)) {
+            return;
+        }
+        String normalizedName = name.toLowerCase(Locale.ROOT);
+        String normalizedUuid = Security.normalizeUuid(uuid);
+        int maxEntries = Math.max(128, Math.min(100_000,
+                Security.getInt("Security.UUIDCacheMaxEntries", 10_000)));
+        if (!activeUUIDs.containsKey(normalizedName) && activeUUIDs.size() >= maxEntries) {
+            Iterator<Entry<String, String>> iterator = activeUUIDs.entrySet().iterator();
+            if (iterator.hasNext()) {
+                Entry<String, String> oldest = iterator.next();
+                activeUUIDs.remove(oldest.getKey(), oldest.getValue());
+                activeNamesByUuid.remove(oldest.getValue(), oldest.getKey());
+            }
+        }
+        String previous = activeUUIDs.put(normalizedName, normalizedUuid);
+        if (previous != null && !previous.equals(normalizedUuid)) {
+            activeNamesByUuid.remove(previous, normalizedName);
+        }
+        activeNamesByUuid.put(normalizedUuid, normalizedName);
     }
 
     /**

@@ -1,8 +1,19 @@
 package me.leoko.advancedban.utils;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import me.leoko.advancedban.MethodInterface;
 import me.leoko.advancedban.Universal;
 
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.net.HttpURLConnection;
+import java.net.Inet6Address;
+import java.net.InetAddress;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.regex.Pattern;
 
@@ -10,6 +21,7 @@ public final class Security {
     public static final int DEFAULT_MAX_REASON_LENGTH = 255;
     public static final int DEFAULT_MAX_TOTAL_COMMAND_LENGTH = 2048;
     public static final int DEFAULT_MAX_ARGUMENT_LENGTH = 256;
+    public static final int DEFAULT_MAX_HTTP_RESPONSE_CHARS = 65_536;
 
     private static final Pattern PLAYER_NAME = Pattern.compile("^[A-Za-z0-9_]{1,16}$");
     private static final Pattern UUID = Pattern.compile("(?i)^[0-9a-f]{32}$|^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$");
@@ -56,6 +68,21 @@ public final class Security {
             }
         }
         return true;
+    }
+
+    public static boolean isValidIpAddress(String ip) {
+        if (isValidIpV4(ip)) {
+            return true;
+        }
+        if (ip == null || ip.length() < 2 || ip.length() > 45 || ip.indexOf(':') < 0
+                || !ip.matches("[0-9A-Fa-f:.]+")) {
+            return false;
+        }
+        try {
+            return InetAddress.getByName(ip) instanceof Inet6Address;
+        } catch (IOException ignored) {
+            return false;
+        }
     }
 
     public static String sanitizeReason(String reason) {
@@ -117,6 +144,111 @@ public final class Security {
             return 0L;
         }
         return ticks > Long.MAX_VALUE / 50L ? Long.MAX_VALUE : ticks * 50L;
+    }
+
+    public static Integer parseBoundedInt(String value, int min, int max) {
+        if (value == null || value.isEmpty() || value.length() > 10) {
+            return null;
+        }
+        try {
+            int parsed = Integer.parseInt(value);
+            return parsed >= min && parsed <= max ? parsed : null;
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    public static String fetchJsonValue(String url, String key) throws IOException {
+        return parseJsonValue(fetchText(url, configuredHttpLimit()), key);
+    }
+
+    public static String fetchText(String value, int maxChars) throws IOException {
+        if (value == null || value.length() > 2048) {
+            throw new IOException("Invalid HTTP URL.");
+        }
+        URL url = new URL(value);
+        if (!"http".equalsIgnoreCase(url.getProtocol()) && !"https".equalsIgnoreCase(url.getProtocol())) {
+            throw new IOException("Only HTTP(S) URLs are supported.");
+        }
+        if (url.getHost() == null || url.getHost().isEmpty() || url.getUserInfo() != null) {
+            throw new IOException("Invalid HTTP URL authority.");
+        }
+
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        try {
+            connection.setConnectTimeout(clamp(getInt("Security.HttpConnectTimeoutMillis", 3000), 250, 60_000));
+            connection.setReadTimeout(clamp(getInt("Security.HttpReadTimeoutMillis", 3000), 250, 60_000));
+            connection.setUseCaches(false);
+            connection.setInstanceFollowRedirects(false);
+            connection.setRequestProperty("Accept", "application/json, text/plain;q=0.9");
+            connection.setRequestProperty("User-Agent", "AdvancedBanPlus");
+            int status = connection.getResponseCode();
+            if (status < 200 || status >= 300) {
+                throw new IOException("Unexpected HTTP status " + status + ".");
+            }
+            try (Reader reader = new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8)) {
+                return readBounded(reader, clamp(maxChars, 1, 1_048_576));
+            }
+        } finally {
+            connection.disconnect();
+        }
+    }
+
+    public static String parseJsonValue(Reader reader, String key) throws IOException {
+        if (reader == null) {
+            return null;
+        }
+        return parseJsonValue(readBounded(reader, configuredHttpLimit()), key);
+    }
+
+    public static String parseJsonValue(String json, String key) {
+        if (json == null || key == null || json.length() > configuredHttpLimit()
+                || key.isEmpty() || key.length() > 256) {
+            return null;
+        }
+        try {
+            JsonElement current = JsonParser.parseString(json);
+            String[] path = key.split("\\|", -1);
+            if (path.length > 16) {
+                return null;
+            }
+            for (String part : path) {
+                if (part.isEmpty() || part.length() > 64 || !current.isJsonObject()) {
+                    return null;
+                }
+                JsonObject object = current.getAsJsonObject();
+                current = object.get(part);
+                if (current == null || current.isJsonNull()) {
+                    return null;
+                }
+            }
+            String result = current.isJsonPrimitive() ? current.getAsString() : current.toString();
+            return limit(sanitizeForStorage(result), 8192);
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private static String readBounded(Reader reader, int maxChars) throws IOException {
+        StringBuilder result = new StringBuilder(Math.min(maxChars, 8192));
+        char[] buffer = new char[2048];
+        int read;
+        while ((read = reader.read(buffer)) != -1) {
+            if (result.length() + read > maxChars) {
+                throw new IOException("HTTP response exceeded the configured size limit.");
+            }
+            result.append(buffer, 0, read);
+        }
+        return result.toString();
+    }
+
+    private static int configuredHttpLimit() {
+        return clamp(getInt("Security.MaxHttpResponseChars", DEFAULT_MAX_HTTP_RESPONSE_CHARS),
+                1024, 1_048_576);
+    }
+
+    private static int clamp(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
     }
 
     public static int getInt(String path, int def) {

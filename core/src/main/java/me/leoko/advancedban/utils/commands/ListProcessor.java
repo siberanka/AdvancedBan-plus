@@ -8,6 +8,7 @@ import me.leoko.advancedban.utils.Punishment;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -34,7 +35,7 @@ public class ListProcessor implements Consumer<Command.CommandInput> {
         if (hasTarget) {
             target = input.getPrimary();
             name = target;
-            if (!target.matches("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$")) {
+            if (!me.leoko.advancedban.utils.Security.isValidIpAddress(target)) {
                 target = processName(input);
                 if (target == null)
                     return;
@@ -51,15 +52,24 @@ public class ListProcessor implements Consumer<Command.CommandInput> {
             return;
         }
 
-        punishments
-                .stream()
-                .filter(punishment -> punishment.isExpired() && !history)
-                .forEach(punishment -> {
-                    punishment.delete();
-                    punishments.remove(punishment);
-                });
+        if (!history) {
+            Iterator<Punishment> iterator = punishments.iterator();
+            while (iterator.hasNext()) {
+                Punishment punishment = iterator.next();
+                if (punishment.isExpired() && punishment.delete(null, false, false)) {
+                    iterator.remove();
+                }
+            }
+        }
 
-        int page = input.hasNext() ? Integer.parseInt(input.getPrimary()) : 1;
+        Integer parsedPage = input.hasNext()
+                ? me.leoko.advancedban.utils.Security.parseBoundedInt(input.getPrimary(), 1, 1_000_000)
+                : 1;
+        if (parsedPage == null) {
+            MessageManager.sendMessage(input.getSender(), "General.InvalidArguments", true);
+            return;
+        }
+        int page = parsedPage;
         if (punishments.size() / 5.0 + 1 <= page) {
             MessageManager.sendMessage(input.getSender(), config + ".OutOfIndex",
                     true, "PAGE", page + "");

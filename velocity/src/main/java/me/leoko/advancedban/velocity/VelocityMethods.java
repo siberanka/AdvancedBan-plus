@@ -91,20 +91,15 @@ public class VelocityMethods implements MethodInterface {
     @Override
     public String getFromUrlJson(String url, String key) {
         try {
-            HttpURLConnection request = (HttpURLConnection) new URL(url).openConnection();
-            request.setConnectTimeout(Security.getInt("Security.HttpConnectTimeoutMillis", 3000));
-            request.setReadTimeout(Security.getInt("Security.HttpReadTimeoutMillis", 3000));
-            request.setUseCaches(false);
-            request.connect();
-            return parseJSON(new InputStreamReader(request.getInputStream(), StandardCharsets.UTF_8), key);
-        } catch (Exception exc) {
+            return Security.fetchJsonValue(url, key);
+        } catch (IOException | RuntimeException exc) {
             return null;
         }
     }
 
     @Override
     public String getVersion() {
-        return "2026.07.28.1";
+        return "2026.07.28.2";
     }
 
     @Override
@@ -270,9 +265,7 @@ public class VelocityMethods implements MethodInterface {
     @Override
     public String parseJSON(InputStreamReader json, String key) {
         try {
-            char[] buffer = new char[8192];
-            int len = json.read(buffer);
-            return len <= 0 ? null : parseJSON(new String(buffer, 0, len), key);
+            return Security.parseJsonValue(json, key);
         } catch (IOException ex) {
             return null;
         }
@@ -280,18 +273,7 @@ public class VelocityMethods implements MethodInterface {
 
     @Override
     public String parseJSON(String json, String key) {
-        String quotedKey = "\"" + key + "\"";
-        int keyIndex = json.indexOf(quotedKey);
-        if (keyIndex == -1) {
-            return null;
-        }
-        int colon = json.indexOf(':', keyIndex + quotedKey.length());
-        if (colon == -1) {
-            return null;
-        }
-        int start = json.indexOf('"', colon + 1);
-        int end = start == -1 ? -1 : json.indexOf('"', start + 1);
-        return start == -1 || end == -1 ? null : json.substring(start + 1, end);
+        return Security.parseJsonValue(json, key);
     }
 
     @Override

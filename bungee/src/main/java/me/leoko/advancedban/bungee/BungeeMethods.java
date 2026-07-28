@@ -109,23 +109,8 @@ public class BungeeMethods implements MethodInterface {
     @Override
     public String getFromUrlJson(String url, String key) {
         try {
-            HttpURLConnection request = (HttpURLConnection) new URL(url).openConnection();
-            request.setConnectTimeout(Security.getInt("Security.HttpConnectTimeoutMillis", 3000));
-            request.setReadTimeout(Security.getInt("Security.HttpReadTimeoutMillis", 3000));
-            request.setUseCaches(false);
-            request.connect();
-
-            JsonParser jp = new JsonParser();
-            JsonObject json = (JsonObject) jp.parse(new InputStreamReader(request.getInputStream()));
-
-            String[] keys = key.split("\\|");
-            for (int i = 0; i < keys.length - 1; i++) {
-                json = json.getAsJsonObject(keys[i]);
-            }
-
-            return json.get(keys[keys.length - 1]).toString().replace("\"", "");
-
-        } catch (Exception exc) {
+            return Security.fetchJsonValue(url, key);
+        } catch (IOException | RuntimeException exc) {
             return null;
         }
     }
@@ -137,8 +122,10 @@ public class BungeeMethods implements MethodInterface {
 
     @Override
     public String[] getKeys(Object file, String path) {
-        //TODO not sure if it returns all keys or just the first :/
-        return ((Configuration) file).getSection(path).getKeys().toArray(new String[0]);
+        Configuration section = file instanceof Configuration
+                ? ((Configuration) file).getSection(path)
+                : null;
+        return section == null ? new String[0] : section.getKeys().toArray(new String[0]);
     }
 
     @Override
@@ -347,22 +334,16 @@ public class BungeeMethods implements MethodInterface {
 
     @Override
     public String parseJSON(InputStreamReader json, String key) {
-        JsonElement element = new JsonParser().parse(json);
-        if (element instanceof JsonNull) {
+        try {
+            return Security.parseJsonValue(json, key);
+        } catch (IOException ex) {
             return null;
         }
-        JsonElement obj = ((JsonObject) element).get(key);
-        return obj != null ? obj.toString().replace("\"", "") : null;
     }
 
     @Override
     public String parseJSON(String json, String key) {
-        JsonElement element = new JsonParser().parse(json);
-        if (element instanceof JsonNull) {
-            return null;
-        }
-        JsonElement obj = ((JsonObject) element).get(key);
-        return obj != null ? obj.toString().replace("\"", "") : null;
+        return Security.parseJsonValue(json, key);
     }
 
     @Override

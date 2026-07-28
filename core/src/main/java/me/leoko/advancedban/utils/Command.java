@@ -6,7 +6,6 @@ import me.leoko.advancedban.manager.DatabaseManager;
 import me.leoko.advancedban.manager.MessageManager;
 import me.leoko.advancedban.manager.PunishmentManager;
 import me.leoko.advancedban.manager.UUIDManager;
-import me.leoko.advancedban.manager.UpdateManager;
 import me.leoko.advancedban.utils.commands.ListProcessor;
 import me.leoko.advancedban.utils.commands.PunishmentProcessor;
 import me.leoko.advancedban.utils.commands.RevokeByIdProcessor;
@@ -20,6 +19,7 @@ import org.apache.commons.lang3.ArrayUtils;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
@@ -142,7 +142,7 @@ public enum Command {
             }),
             input -> {
                 final String confSection = PunishmentType.WARNING.getName();
-                if (input.getPrimaryData().equals("clear")) {
+                if (input.getPrimaryData().equalsIgnoreCase("clear")) {
                     input.next();
                     String name = input.getPrimary();
                     String uuid = processName(input);
@@ -157,11 +157,14 @@ public enum Command {
                     }
 
                     String operator = Universal.get().getMethods().getName(input.getSender());
+                    int removed = 0;
                     for (Punishment punishment : punishments) {
-                        punishment.delete(operator, true, true);
+                        if (punishment.delete(operator, true, true)) {
+                            removed++;
+                        }
                     }
                     MessageManager.sendMessage(input.getSender(), "Un" + confSection + ".Clear.Done",
-                            true, "COUNT", String.valueOf(punishments.size()));
+                            true, "COUNT", String.valueOf(removed));
                 } else {
                     new RevokeByIdProcessor("Un" + confSection, PunishmentManager.get()::getWarn).accept(input);
                 }
@@ -181,7 +184,7 @@ public enum Command {
             }),
             input -> {
                 final String confSection = PunishmentType.NOTE.getName();
-                if (input.getPrimaryData().equals("clear")) {
+                if (input.getPrimaryData().equalsIgnoreCase("clear")) {
                     input.next();
                     String name = input.getPrimary();
                     String uuid = processName(input);
@@ -196,11 +199,14 @@ public enum Command {
                     }
 
                     String operator = Universal.get().getMethods().getName(input.getSender());
+                    int removed = 0;
                     for (Punishment punishment : punishments) {
-                        punishment.delete(operator, true, true);
+                        if (punishment.delete(operator, true, true)) {
+                            removed++;
+                        }
                     }
                     MessageManager.sendMessage(input.getSender(), "Un" + confSection + ".Clear.Done",
-                            true, "COUNT", String.valueOf(punishments.size()));
+                            true, "COUNT", String.valueOf(removed));
                 } else {
                     new RevokeByIdProcessor("Un" + confSection, PunishmentManager.get()::getNote).accept(input);
                 }
@@ -235,16 +241,20 @@ public enum Command {
                 Punishment punishment;
 
                 if (input.getPrimaryData().matches("[0-9]*")) {
-                    int id = Integer.parseInt(input.getPrimaryData());
+                    Integer id = Security.parseBoundedInt(input.getPrimaryData(), 0, Integer.MAX_VALUE);
+                    if (id == null) {
+                        MessageManager.sendMessage(input.getSender(), "General.InvalidArguments", true);
+                        return;
+                    }
                     input.next();
 
                     punishment = PunishmentManager.get().getPunishment(id);
                 } else {
-                    PunishmentType type = PunishmentType.valueOf(input.getPrimary().toUpperCase());
+                    PunishmentType type = PunishmentType.valueOf(input.getPrimary().toUpperCase(Locale.ROOT));
                     input.next();
 
                     String target = input.getPrimary();
-                    if (!target.matches("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$")) {
+                    if (!Security.isValidIpAddress(target)) {
                         target = processName(input);
                         if (target == null)
                             return;
@@ -260,9 +270,14 @@ public enum Command {
                     return;
 
                 if (punishment != null) {
-                    punishment.updateReason(reason);
-                    MessageManager.sendMessage(input.getSender(), "ChangeReason.Done",
-                            true, "ID", String.valueOf(punishment.getId()));
+                    if (punishment.updateReason(reason)) {
+                        MessageManager.sendMessage(input.getSender(), "ChangeReason.Done",
+                                true, "ID", String.valueOf(punishment.getId()));
+                    } else {
+                        MessageManager.sendMessage(input.getSender(), "General.StorageFailure",
+                                true, "ID", String.valueOf(punishment.getId()),
+                                "NAME", punishment.getName());
+                    }
                 } else {
                     MessageManager.sendMessage(input.getSender(), "ChangeReason.NotFound", true);
                 }
@@ -382,30 +397,44 @@ public enum Command {
                 if (uuid == null)
                     return;
 
-                String ip = Universal.get().getIps().getOrDefault(name.toLowerCase(), "none cashed");
-                String loc = Universal.get().getMethods().getFromUrlJson("http://ip-api.com/json/" + ip, "country");
+                MethodInterface methods = Universal.get().getMethods();
+                String normalizedName = name.toLowerCase(Locale.ROOT);
+                String unavailable = MessageManager.getMessage("Check.Unavailable", false);
+                String ip = Universal.get().getIps().get(normalizedName);
+                String loc = unavailable;
+                if (ip != null && Security.isValidIpAddress(ip)
+                        && methods.getBoolean(methods.getConfig(), "Check.GeoLookup.Enabled", false)) {
+                    String endpoint = methods.getString(methods.getConfig(), "Check.GeoLookup.URL",
+                            "https://ipapi.co/%IP%/json/").replace("%IP%", ip);
+                    String key = methods.getString(methods.getConfig(), "Check.GeoLookup.Key", "country_name");
+                    String fetchedLocation = methods.getFromUrlJson(endpoint, key);
+                    if (fetchedLocation != null && !fetchedLocation.trim().isEmpty()) {
+                        loc = fetchedLocation;
+                    }
+                }
                 Punishment mute = PunishmentManager.get().getMute(uuid);
                 Punishment ban = PunishmentManager.get().getBan(uuid);
 
                 String cached = MessageManager.getMessage("Check.Cached", false);
                 String notCached = MessageManager.getMessage("Check.NotCached", false);
 
-                boolean nameCached = PunishmentManager.get().isCached(name.toLowerCase());
-                boolean ipCached = PunishmentManager.get().isCached(ip);
+                boolean nameCached = PunishmentManager.get().isCached(normalizedName);
+                boolean ipCached = ip != null && PunishmentManager.get().isCached(ip);
                 boolean uuidCached = PunishmentManager.get().isCached(uuid);
 
                 Object sender = input.getSender();
                 MessageManager.sendMessage(sender, "Check.Header", true, "NAME", name, "CACHED", nameCached ? cached : notCached);
                 MessageManager.sendMessage(sender, "Check.UUID", false, "UUID", uuid, "CACHED", uuidCached ? cached : notCached);
                 if (Universal.get().hasPerms(sender, "ab.check.ip")) {
-                    MessageManager.sendMessage(sender, "Check.IP", false, "IP", ip, "CACHED", ipCached ? cached : notCached);
+                    MessageManager.sendMessage(sender, "Check.IP", false, "IP", ip == null ? unavailable : ip,
+                            "CACHED", ipCached ? cached : notCached);
                 }
-                MessageManager.sendMessage(sender, "Check.Geo", false, "LOCATION", loc == null ? "failed!" : loc);
-                MessageManager.sendMessage(sender, "Check.Mute", false, "DURATION", mute == null ? "§anone" : mute.getType().isTemp() ? "§e" + mute.getDuration(false) : "§cperma");
+                MessageManager.sendMessage(sender, "Check.Geo", false, "LOCATION", loc);
+                MessageManager.sendMessage(sender, "Check.Mute", false, "DURATION", formatCheckDuration(mute));
                 if (mute != null) {
                     MessageManager.sendMessage(sender, "Check.MuteReason", false, "REASON", mute.getReason());
                 }
-                MessageManager.sendMessage(sender, "Check.Ban", false, "DURATION", ban == null ? "§anone" : ban.getType().isTemp() ? "§e" + ban.getDuration(false) : "§cperma");
+                MessageManager.sendMessage(sender, "Check.Ban", false, "DURATION", formatCheckDuration(ban));
                 if (ban != null) {
                     MessageManager.sendMessage(sender, "Check.BanReason", false, "REASON", ban.getReason());
                 }
@@ -448,9 +477,11 @@ public enum Command {
                 if (input.hasNext()) {
                     if (input.getPrimaryData().equals("reload")) {
                         if (Universal.get().hasPerms(sender, "ab.reload")) {
-                            mi.loadFiles();
-                            UpdateManager.get().setup();
-                            MessageManager.sendMessage(sender, "AdvancedBan.Reloaded", true);
+                            if (Universal.get().reload()) {
+                                MessageManager.sendMessage(sender, "AdvancedBan.Reloaded", true);
+                            } else {
+                                MessageManager.sendMessage(sender, "AdvancedBan.ReloadFailed", true);
+                            }
                         } else {
                             MessageManager.sendMessage(sender, "General.NoPerms", true);
                         }
@@ -522,7 +553,7 @@ public enum Command {
     }
 
     public static Command getByName(String name) {
-        String lowerCase = name.toLowerCase();
+        String lowerCase = name.toLowerCase(Locale.ROOT);
         for (Command command : values()) {
             for (String s : command.names) {
                 if (s.equals(lowerCase))
@@ -552,6 +583,17 @@ public enum Command {
         return this.names;
     }
 
+    private static String formatCheckDuration(Punishment punishment) {
+        if (punishment == null) {
+            return MessageManager.getMessage("Check.None", false);
+        }
+        if (!punishment.getType().isTemp()) {
+            return MessageManager.getMessage("Check.Permanent", false);
+        }
+        return MessageManager.getMessage("Check.Temporary", false)
+                .replace("%DURATION%", punishment.getDuration(false));
+    }
+
     public static class CommandInput {
         private Object sender;
         private String[] args;
@@ -566,7 +608,7 @@ public enum Command {
         }
 
         String getPrimaryData() {
-            return getPrimary().toLowerCase();
+            return getPrimary().toLowerCase(Locale.ROOT);
         }
 
         public void removeArgument(int index) {

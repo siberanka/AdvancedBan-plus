@@ -73,8 +73,8 @@ public class DatabaseManager {
             Universal.get().logMessage("Console.LiteBansDatabaseFormatEnabled",
                     "LiteBans database format enabled. Existing AdvancedBan tables are left untouched.");
         } else {
-            executeStatement(SQLQuery.CREATE_TABLE_PUNISHMENT);
-            executeStatement(SQLQuery.CREATE_TABLE_PUNISHMENT_HISTORY);
+            executeRequiredRawStatement(SQLQuery.CREATE_TABLE_PUNISHMENT.toString());
+            executeRequiredRawStatement(SQLQuery.CREATE_TABLE_PUNISHMENT_HISTORY.toString());
         }
     }
 
@@ -147,9 +147,9 @@ public class DatabaseManager {
         }
         try (Connection connection = currentDataSource.getConnection(); PreparedStatement statement = connection.prepareStatement(sql)) {
 
-    		for (int i = 0; i < parameters.length; i++) {
-    			statement.setObject(i + 1, parameters[i]);
-    		}
+            for (int i = 0; i < parameters.length; i++) {
+                statement.setObject(i + 1, parameters[i]);
+            }
 
     		if (result) {
     			CachedRowSet results = createCachedRowSet();
@@ -190,8 +190,22 @@ public class DatabaseManager {
 
         try (Connection connection = currentDataSource.getConnection()) {
             boolean previousAutoCommit = connection.getAutoCommit();
+            int previousIsolation = connection.getTransactionIsolation();
+            boolean serializable = punishment.getType().getBasic() == me.leoko.advancedban.utils.PunishmentType.BAN
+                    || punishment.getType().getBasic() == me.leoko.advancedban.utils.PunishmentType.MUTE;
+            if (serializable) {
+                connection.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+            }
             connection.setAutoCommit(false);
             try {
+                if (serializable && hasActiveDefaultDuplicate(connection, punishment)) {
+                    rollbackQuietly(connection);
+                    Universal.get().logMessage("Console.PunishmentDuplicateBlocked",
+                            "&cAdvancedBan blocked a concurrent duplicate %TYPE% for %NAME%.",
+                            "TYPE", punishment.getType().getBasic().getName(),
+                            "NAME", punishment.getName());
+                    return -1;
+                }
                 int historyId = insertPunishmentRow(connection, SQLQuery.INSERT_PUNISHMENT_HISTORY, punishment);
                 int punishmentId = punishment.getType() == me.leoko.advancedban.utils.PunishmentType.KICK
                         ? historyId
@@ -212,6 +226,9 @@ public class DatabaseManager {
             } finally {
                 try {
                     connection.setAutoCommit(previousAutoCommit);
+                    if (connection.getTransactionIsolation() != previousIsolation) {
+                        connection.setTransactionIsolation(previousIsolation);
+                    }
                 } catch (SQLException ex) {
                     Universal.get().debugSqlException(ex);
                 }
@@ -243,6 +260,41 @@ public class DatabaseManager {
         }
     }
 
+    private boolean hasActiveDefaultDuplicate(Connection connection, Punishment punishment) throws SQLException {
+        me.leoko.advancedban.utils.PunishmentType basic = punishment.getType().getBasic();
+        String table = useMySQL ? "`Punishments`" : "Punishments";
+        String uuidColumn = useMySQL ? "`uuid`" : "uuid";
+        String typeColumn = useMySQL ? "`punishmentType`" : "punishmentType";
+        String endColumn = useMySQL ? "`end`" : "end";
+        String sql;
+        if (basic == me.leoko.advancedban.utils.PunishmentType.BAN) {
+            sql = "SELECT id FROM " + table + " WHERE " + uuidColumn + " = ? AND "
+                    + typeColumn + " IN (?, ?, ?, ?) AND (" + endColumn + " = -1 OR "
+                    + endColumn + " > ?)";
+        } else {
+            sql = "SELECT id FROM " + table + " WHERE " + uuidColumn + " = ? AND "
+                    + typeColumn + " IN (?, ?) AND (" + endColumn + " = -1 OR "
+                    + endColumn + " > ?)";
+        }
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, punishment.getUuid());
+            if (basic == me.leoko.advancedban.utils.PunishmentType.BAN) {
+                statement.setString(2, "BAN");
+                statement.setString(3, "TEMP_BAN");
+                statement.setString(4, "IP_BAN");
+                statement.setString(5, "TEMP_IP_BAN");
+                statement.setLong(6, TimeManager.getTime());
+            } else {
+                statement.setString(2, "MUTE");
+                statement.setString(3, "TEMP_MUTE");
+                statement.setLong(4, TimeManager.getTime());
+            }
+            try (ResultSet result = statement.executeQuery()) {
+                return result.next();
+            }
+        }
+    }
+
     private void rollbackQuietly(Connection connection) {
         try {
             connection.rollback();
@@ -263,24 +315,23 @@ public class DatabaseManager {
         return storePunishment(punishment, silent);
     }
 
-    public void revokePunishment(Punishment punishment, String who) {
+    public boolean revokePunishment(Punishment punishment, String who) {
         if (isLiteBansFormat()) {
-            liteBansStorage.revoke(punishment, who);
-        } else {
-            executeStatement(SQLQuery.DELETE_PUNISHMENT, punishment.getId());
+            return liteBansStorage.revoke(punishment, who);
         }
+        return executeUpdateRawStatement(SQLQuery.DELETE_PUNISHMENT.toString(), punishment.getId()) == 1;
     }
 
-    public void updatePunishmentReason(Punishment punishment, String reason) {
+    public boolean updatePunishmentReason(Punishment punishment, String reason) {
         if (isLiteBansFormat()) {
-            liteBansStorage.updateReason(punishment, reason);
-        } else {
-            executeStatement(SQLQuery.UPDATE_PUNISHMENT_REASON, reason, punishment.getId());
+            return liteBansStorage.updateReason(punishment, reason);
         }
+        return executeUpdateRawStatement(SQLQuery.UPDATE_PUNISHMENT_REASON.toString(),
+                reason, punishment.getId()) == 1;
     }
 
     public PreparedStatement prepareExternalStatement(String sql) throws SQLException {
-        if (dataSource == null || dataSource.isClosed()) {
+        if (!acceptingQueries || dataSource == null || dataSource.isClosed()) {
             throw new SQLException("Database is not available");
         }
         Connection connection = dataSource.getConnection();
@@ -315,6 +366,101 @@ public class DatabaseManager {
                 PreparedStatement.class.getClassLoader(),
                 new Class[]{PreparedStatement.class},
                 handler);
+    }
+
+    void executeRequiredRawStatement(String sql, Object... parameters) {
+        HikariDataSource currentDataSource = requireDataSource();
+        try (Connection connection = currentDataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            bind(statement, parameters);
+            statement.execute();
+        } catch (SQLException ex) {
+            throw new IllegalStateException("Required database schema statement failed.", ex);
+        }
+    }
+
+    int executeUpdateRawStatement(String sql, Object... parameters) {
+        HikariDataSource currentDataSource;
+        try {
+            currentDataSource = requireDataSource();
+        } catch (IllegalStateException ex) {
+            Universal.get().debugException(ex);
+            return -1;
+        }
+        try (Connection connection = currentDataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            bind(statement, parameters);
+            return statement.executeUpdate();
+        } catch (SQLException ex) {
+            Universal.get().logMessage("Console.DatabaseStatementFailed",
+                    "An unexpected error occurred while updating the database.");
+            Universal.get().debugSqlException(ex);
+            return -1;
+        }
+    }
+
+    <T> T inTransaction(SqlTransaction<T> transaction, T failureValue) {
+        if (transaction == null) {
+            return failureValue;
+        }
+        HikariDataSource currentDataSource;
+        try {
+            currentDataSource = requireDataSource();
+        } catch (IllegalStateException ex) {
+            Universal.get().debugException(ex);
+            return failureValue;
+        }
+
+        try (Connection connection = currentDataSource.getConnection()) {
+            boolean previousAutoCommit = connection.getAutoCommit();
+            int previousIsolation = connection.getTransactionIsolation();
+            connection.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+            connection.setAutoCommit(false);
+            try {
+                T result = transaction.execute(connection);
+                connection.commit();
+                return result;
+            } catch (SQLException | RuntimeException ex) {
+                rollbackQuietly(connection);
+                if (ex instanceof SQLException) {
+                    Universal.get().debugSqlException((SQLException) ex);
+                } else {
+                    Universal.get().debugException((RuntimeException) ex);
+                }
+                return failureValue;
+            } finally {
+                try {
+                    connection.setAutoCommit(previousAutoCommit);
+                    if (connection.getTransactionIsolation() != previousIsolation) {
+                        connection.setTransactionIsolation(previousIsolation);
+                    }
+                } catch (SQLException ex) {
+                    Universal.get().debugSqlException(ex);
+                }
+            }
+        } catch (SQLException ex) {
+            Universal.get().debugSqlException(ex);
+            return failureValue;
+        }
+    }
+
+    private HikariDataSource requireDataSource() {
+        HikariDataSource currentDataSource = dataSource;
+        if (!acceptingQueries || currentDataSource == null || currentDataSource.isClosed()) {
+            throw new IllegalStateException("Database is not available.");
+        }
+        return currentDataSource;
+    }
+
+    static void bind(PreparedStatement statement, Object... parameters) throws SQLException {
+        for (int i = 0; i < parameters.length; i++) {
+            statement.setObject(i + 1, parameters[i]);
+        }
+    }
+
+    @FunctionalInterface
+    interface SqlTransaction<T> {
+        T execute(Connection connection) throws SQLException;
     }
 
     /**

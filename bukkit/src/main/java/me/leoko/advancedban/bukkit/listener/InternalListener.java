@@ -21,10 +21,12 @@ public class InternalListener implements Listener {
         BanList banlist;
         if (e.getPunishment().getType().equals(PunishmentType.BAN) || e.getPunishment().getType().equals(PunishmentType.TEMP_BAN)) {
             banlist = Bukkit.getBanList(BanList.Type.NAME);
-            banlist.addBan(e.getPunishment().getName(), e.getPunishment().getReason(), new Date(e.getPunishment().getEnd()), e.getPunishment().getOperator());
+            banlist.addBan(e.getPunishment().getName(), e.getPunishment().getReason(),
+                    expiration(e.getPunishment().getEnd()), e.getPunishment().getOperator());
         } else if (e.getPunishment().getType().equals(PunishmentType.IP_BAN) || e.getPunishment().getType().equals(PunishmentType.TEMP_IP_BAN)) {
             banlist = Bukkit.getBanList(BanList.Type.IP);
-            banlist.addBan(e.getPunishment().getName(), e.getPunishment().getReason(), new Date(e.getPunishment().getEnd()), e.getPunishment().getOperator());
+            banlist.addBan(e.getPunishment().getUuid(), e.getPunishment().getReason(),
+                    expiration(e.getPunishment().getEnd()), e.getPunishment().getOperator());
         }
     }
     
@@ -36,7 +38,11 @@ public class InternalListener implements Listener {
             banlist.pardon(e.getPunishment().getName());
         } else if (e.getPunishment().getType().equals(PunishmentType.IP_BAN) || e.getPunishment().getType().equals(PunishmentType.TEMP_IP_BAN)) {
             banlist = Bukkit.getBanList(BanList.Type.IP);
-            banlist.pardon(e.getPunishment().getName());
+            banlist.pardon(e.getPunishment().getUuid());
         }
+    }
+
+    private Date expiration(long end) {
+        return end < 0L ? null : new Date(end);
     }
 }

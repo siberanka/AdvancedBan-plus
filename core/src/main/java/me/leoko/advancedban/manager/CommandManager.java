@@ -30,6 +30,12 @@ public class CommandManager {
      * @param args   the arguments for this command
      */
     public void onCommand(final Object sender, final String cmd, final String[] args) {
+        if (!Universal.get().isOperational()) {
+            if (Universal.get().getMethods() != null) {
+                MessageManager.sendMessage(sender, "General.PluginUnavailable", true);
+            }
+            return;
+        }
         if (!isSafeCommand(cmd, args)) {
             MessageManager.sendMessage(sender, "General.InvalidArguments", true);
             return;

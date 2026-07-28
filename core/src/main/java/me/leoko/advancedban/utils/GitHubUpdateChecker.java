@@ -21,31 +21,38 @@ public final class GitHubUpdateChecker {
 
     public Result check(String currentVersion) throws IOException {
         HttpURLConnection connection = (HttpURLConnection) new URL(API_URL).openConnection();
-        connection.setRequestProperty("Accept", "application/vnd.github+json");
-        connection.setRequestProperty("X-GitHub-Api-Version", "2026-03-10");
-        connection.setRequestProperty("User-Agent", "AdvancedBanPlus/" + Security.limit(currentVersion, 64));
-        connection.setConnectTimeout(Security.getInt("Security.HttpConnectTimeoutMillis", 3000));
-        connection.setReadTimeout(Security.getInt("Security.HttpReadTimeoutMillis", 3000));
-        connection.setUseCaches(false);
+        try {
+            connection.setRequestProperty("Accept", "application/vnd.github+json");
+            connection.setRequestProperty("X-GitHub-Api-Version", "2022-11-28");
+            connection.setRequestProperty("User-Agent", "AdvancedBanPlus/" + Security.limit(currentVersion, 64));
+            connection.setConnectTimeout(Security.getInt("Security.HttpConnectTimeoutMillis", 3000));
+            connection.setReadTimeout(Security.getInt("Security.HttpReadTimeoutMillis", 3000));
+            connection.setUseCaches(false);
+            connection.setInstanceFollowRedirects(false);
 
-        int responseCode = connection.getResponseCode();
-        if (responseCode != HttpURLConnection.HTTP_OK) {
-            throw new IOException("GitHub latest release check failed with HTTP " + responseCode);
+            int responseCode = connection.getResponseCode();
+            if (responseCode != HttpURLConnection.HTTP_OK) {
+                throw new IOException("GitHub latest release check failed with HTTP " + responseCode);
+            }
+
+            String response = readLimited(connection.getInputStream());
+            JsonObject json = JsonParser.parseString(response).getAsJsonObject();
+            String latestVersion = normalizeVersion(readString(json, "tag_name"));
+            if (!isSupportedVersion(latestVersion)) {
+                throw new IOException("GitHub release tag has an unsupported version format");
+            }
+
+            String releaseUrl = readString(json, "html_url");
+            if (releaseUrl == null || !releaseUrl.startsWith("https://github.com/siberanka/AdvancedBan-plus/releases/")) {
+                releaseUrl = RELEASE_URL;
+            }
+
+            return new Result(currentVersion, latestVersion, releaseUrl, isNewer(latestVersion, currentVersion));
+        } catch (RuntimeException ex) {
+            throw new IOException("GitHub latest release response was invalid.", ex);
+        } finally {
+            connection.disconnect();
         }
-
-        String response = readLimited(connection.getInputStream());
-        JsonObject json = JsonParser.parseString(response).getAsJsonObject();
-        String latestVersion = normalizeVersion(readString(json, "tag_name"));
-        if (!isSupportedVersion(latestVersion)) {
-            throw new IOException("GitHub release tag has an unsupported version format");
-        }
-
-        String releaseUrl = readString(json, "html_url");
-        if (releaseUrl == null || !releaseUrl.startsWith("https://github.com/siberanka/AdvancedBan-plus/releases/")) {
-            releaseUrl = RELEASE_URL;
-        }
-
-        return new Result(currentVersion, latestVersion, releaseUrl, isNewer(latestVersion, currentVersion));
     }
 
     public static boolean isNewer(String latestVersion, String currentVersion) {

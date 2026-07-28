@@ -5,7 +5,7 @@
 Production-focused modernization of AdvancedBan for Bukkit, Spigot, Paper, Folia,
 BungeeCord and Velocity.
 
-- Version: `2026.07.28.1`
+- Version: `2026.07.28.2`
 - Authors: Leoko, siberanka
 - License: GPL-3.0
 
@@ -13,7 +13,7 @@ BungeeCord and Velocity.
 
 Download and install only:
 
-`AdvancedBan-Bundle-2026.07.28.1-RELEASE.jar`
+`AdvancedBan-Bundle-2026.07.28.2-RELEASE.jar`
 
 The Bundle is the only production artifact. It detects the host platform and contains
 the Bukkit/Paper/Folia, BungeeCord and Velocity adapters. JARs produced inside the
@@ -52,7 +52,8 @@ continuously checked against the oldest API baseline, a modern 1.21 API profile 
 - Kick, unban, unmute, unwarn, unnote, history, check and list workflows.
 - Configurable warning actions, layouts, permissions, exempt players and durations.
 - MySQL/MariaDB through HikariCP or bounded local HSQLDB storage.
-- Atomic default-format punishment writes and duplicate active ban/mute suppression.
+- Atomic default- and LiteBans-format punishment writes, rollback on partial failure
+  and duplicate active ban/mute suppression.
 - Optional LiteBans-compatible database tables without deleting or automatically
   migrating existing AdvancedBan data.
 - Optional LiteBans API compatibility for `Database`, `Events`, `Entry`,
@@ -68,11 +69,12 @@ continuously checked against the oldest API baseline, a modern 1.21 API profile 
   backup-before-repair and optional unknown-key cleanup.
 - Size-limited and rotated `plugins/AdvancedBan/error.log` with localized remediation
   hints for recognized failures.
-- Command payload limits, per-sender rate limiting, bounded notification state and
-  outbound HTTP timeouts.
+- Command payload limits, per-sender rate limiting, bounded notification/UUID caches,
+  structured size-limited JSON parsing, IPv4/IPv6 validation and outbound HTTP
+  timeouts.
 - Fail-closed login/chat/command handling when configured database lockdown is active.
-- Idempotent load/reload/unload lifecycle with task cancellation, cache cleanup and
-  database pool shutdown.
+- Fail-closed load/reload/unload lifecycle with task cancellation, cache cleanup,
+  database pool reconstruction and online-player revalidation.
 - RedisBungee synchronization support on compatible Bungee networks.
 - bStats metrics for Bukkit, BungeeCord and Velocity.
 
@@ -97,6 +99,13 @@ Database:
 
 UpdateChecker:
   Enabled: true
+
+Check:
+  GeoLookup:
+    # Disabled by default because enabling it shares player IP addresses externally.
+    Enabled: false
+    URL: "https://ipapi.co/%IP%/json/"
+    Key: "country_name"
 
 VoiceChat:
   MuteIntegration:
@@ -140,6 +149,10 @@ neutralized unless explicitly allowed, payload and field sizes are capped, outbo
 requests have timeouts, and repeated attempt notifications are throttled. All webhook
 titles, descriptions, fields and staff messages are in `Messages.yml`.
 
+`Check.GeoLookup.Enabled` is disabled by default. Enabling it sends a validated
+literal player IP to the configured HTTPS JSON endpoint when an authorized moderator
+uses `/check`; review local privacy requirements before enabling it.
+
 ### Build and Verification
 
 Requirements: Maven 3.9+ and JDK 11+ for the baseline build. Use JDK 25 for the 26.x
@@ -174,7 +187,7 @@ platform descriptors, entry points, Folia metadata, version/author metadata and 
 Bukkit, Spigot, Paper, Folia, BungeeCord ve Velocity için production odaklı
 modernize edilmiş AdvancedBan sürümüdür.
 
-- Sürüm: `2026.07.28.1`
+- Sürüm: `2026.07.28.2`
 - Geliştiriciler: Leoko, siberanka
 - Lisans: GPL-3.0
 
@@ -182,7 +195,7 @@ modernize edilmiş AdvancedBan sürümüdür.
 
 Yalnızca şu dosyayı indirip kurun:
 
-`AdvancedBan-Bundle-2026.07.28.1-RELEASE.jar`
+`AdvancedBan-Bundle-2026.07.28.2-RELEASE.jar`
 
 Production için desteklenen tek artefakt Bundle JAR'dır. Çalıştığı platformu algılar
 ve Bukkit/Paper/Folia, BungeeCord ve Velocity adaptörlerini birlikte içerir. Modül
@@ -220,7 +233,8 @@ Actions üzerinde sürekli doğrulanır.
 - Kick, unban, unmute, unwarn, unnote, geçmiş, kontrol ve liste komutları.
 - Ayarlanabilir warn aksiyonları, layoutlar, izinler, muaf oyuncular ve süreler.
 - HikariCP ile MySQL/MariaDB veya sınırlandırılmış yerel HSQLDB.
-- Atomik varsayılan-format ceza yazımı ve yinelenen aktif ban/mute engelleme.
+- Varsayılan ve LiteBans formatında atomik ceza yazımı, kısmi hatada rollback ve
+  yinelenen aktif ban/mute engelleme.
 - Mevcut veriyi silmeden isteğe bağlı LiteBans uyumlu veritabanı tabloları.
 - Varsayılan kapalı LiteBans `Database`, `Events`, `Entry`, `PlayerProvider` ve
   `RandomID` API uyumluluğu.
@@ -234,11 +248,12 @@ Actions üzerinde sürekli doğrulanır.
   isteğe bağlı kullanılmayan anahtar temizliği.
 - Bilinen hatalarda çözüm önerisi içeren, boyut limitli ve döndürülen
   `plugins/AdvancedBan/error.log`.
-- Komut payload sınırları, kullanıcı bazlı rate limit, sınırlandırılmış bildirim
-  durumu ve HTTP timeoutları.
+- Komut payload sınırları, kullanıcı bazlı rate limit, sınırlandırılmış bildirim/UUID
+  cache'leri, boyut limitli yapısal JSON ayrıştırma, IPv4/IPv6 doğrulaması ve HTTP
+  timeoutları.
 - Veritabanı lockdown etkinken şüpheli giriş/chat/komut akışlarında fail-closed davranış.
-- Task iptali, cache temizliği ve bağlantı havuzu kapatması içeren idempotent
-  load/reload/unload yaşam döngüsü.
+- Task iptali, cache temizliği, bağlantı havuzunu yeniden kurma ve çevrimiçi
+  oyuncuları yeniden doğrulama içeren fail-closed load/reload/unload yaşam döngüsü.
 - Uyumlu Bungee ağlarında RedisBungee senkronizasyonu.
 - Bukkit, BungeeCord ve Velocity için bStats.
 
@@ -264,6 +279,13 @@ Database:
 
 UpdateChecker:
   Enabled: true
+
+Check:
+  GeoLookup:
+    # Oyuncu IP adresini dış servisle paylaşacağı için varsayılan kapalıdır.
+    Enabled: false
+    URL: "https://ipapi.co/%IP%/json/"
+    Key: "country_name"
 
 VoiceChat:
   MuteIntegration:
@@ -306,6 +328,10 @@ Webhook URL'leri varsayılan olarak Discord HTTPS alan adlarıyla sınırlıdır
 izin verilmedikçe mentionlar etkisizleştirilir; payload/alan boyutları sınırlanır,
 istek timeoutları uygulanır ve tekrar eden deneme bildirimleri yavaşlatılır. Webhook
 başlık, açıklama, alan ve yetkili mesajlarının tamamı `Messages.yml` içindedir.
+
+`Check.GeoLookup.Enabled` varsayılan olarak kapalıdır. Açılması, yetkili bir moderatör
+`/check` kullandığında doğrulanmış oyuncu IP adresini ayarlanan HTTPS JSON servisine
+gönderir; etkinleştirmeden önce yerel gizlilik yükümlülüklerini değerlendirin.
 
 ### Derleme ve Doğrulama
 

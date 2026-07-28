@@ -23,7 +23,7 @@ public class RevokeProcessor implements Consumer<Command.CommandInput> {
         String name = input.getPrimary();
 
         String target = name;
-        if(!target.matches("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$")) {
+        if (!me.leoko.advancedban.utils.Security.isValidIpAddress(target)) {
             target = processName(input);
             if (target == null)
                 return;
@@ -37,8 +37,12 @@ public class RevokeProcessor implements Consumer<Command.CommandInput> {
         }
 
         final String operator = Universal.get().getMethods().getName(input.getSender());
-        punishment.delete(operator, false, true);
-        MessageManager.sendMessage(input.getSender(), "Un" + type.getName() + ".Done",
-                true, "NAME", name);
+        if (punishment.delete(operator, false, true)) {
+            MessageManager.sendMessage(input.getSender(), "Un" + type.getName() + ".Done",
+                    true, "NAME", name);
+        } else {
+            MessageManager.sendMessage(input.getSender(), "General.StorageFailure",
+                    true, "NAME", name, "ID", String.valueOf(punishment.getId()));
+        }
     }
 }

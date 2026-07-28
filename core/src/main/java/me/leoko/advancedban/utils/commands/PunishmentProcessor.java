@@ -11,6 +11,7 @@ import me.leoko.advancedban.utils.Punishment;
 import me.leoko.advancedban.utils.PunishmentType;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -70,10 +71,16 @@ public class PunishmentProcessor implements Consumer<Command.CommandInput> {
 
         MethodInterface mi = Universal.get().getMethods();
         String operator = mi.getName(input.getSender());
-        Punishment.create(name, target, reason, operator, type, end, timeTemplate, silent);
-
-        MessageManager.sendMessage(input.getSender(), type.getBasic().getName() + ".Done",
-                true, "NAME", name);
+        if (Punishment.create(name, target, reason, operator, type, end, timeTemplate, silent)) {
+            MessageManager.sendMessage(input.getSender(), type.getBasic().getName() + ".Done",
+                    true, "NAME", name);
+        } else if (alreadyPunished(target, type)) {
+            MessageManager.sendMessage(input.getSender(), type.getBasic().getName() + ".AlreadyDone",
+                    true, "NAME", name);
+        } else {
+            MessageManager.sendMessage(input.getSender(), "General.StorageFailure",
+                    true, "NAME", name);
+        }
     }
 
     // Removes time argument and returns timestamp (null if failed)
@@ -89,12 +96,22 @@ public class PunishmentProcessor implements Consumer<Command.CommandInput> {
             }
             int i = PunishmentManager.get().getCalculationLevel(uuid, layout);
             List<String> timeLayout = mi.getStringList(mi.getLayouts(), "Time." + layout);
+            if (timeLayout == null || timeLayout.isEmpty()) {
+                MessageManager.sendMessage(input.getSender(), "General.LayoutNotFound", true, "NAME", layout);
+                return null;
+            }
             String timeName = timeLayout.get(Math.min(i, timeLayout.size() - 1));
             if (timeName.equalsIgnoreCase("perma")) {
                 return new TimeCalculation(layout, -1L);
             }
-            Long actualTime = TimeManager.getTime() + TimeManager.toMilliSec(timeName);
-            return new TimeCalculation(layout, actualTime);
+            long toAdd = TimeManager.toMilliSec(timeName);
+            long now = TimeManager.getTime();
+            if (toAdd <= 0L || Long.MAX_VALUE - now < toAdd) {
+                MessageManager.sendMessage(input.getSender(), type.getName() + ".MaxDuration",
+                        true, "MAX", "invalid");
+                return null;
+            }
+            return new TimeCalculation(layout, now + toAdd);
         }
         long toAdd = TimeManager.toMilliSec(time);
         if (toAdd <= 0 || Long.MAX_VALUE - TimeManager.getTime() < toAdd) {
@@ -106,7 +123,9 @@ public class PunishmentProcessor implements Consumer<Command.CommandInput> {
             for (int i = 10; i >= 1; i--) {
                 if (Universal.get().hasPerms(input.getSender(), "ab." + type.getName() + ".dur." + i) &&
                         mi.contains(mi.getConfig(), "TempPerms." + i)) {
-                    max = mi.getLong(mi.getConfig(), "TempPerms." + i) * 1000;
+                    long configuredSeconds = mi.getLong(mi.getConfig(), "TempPerms." + i);
+                    max = configuredSeconds <= 0L || configuredSeconds > Long.MAX_VALUE / 1000L
+                            ? 0L : configuredSeconds * 1000L;
                     break;
                 }
             }
@@ -121,7 +140,7 @@ public class PunishmentProcessor implements Consumer<Command.CommandInput> {
     // Checks whether target is exempted from punishment
     private static boolean processExempt(String name, String target, Object sender, PunishmentType type) {
         MethodInterface mi = Universal.get().getMethods();
-        String dataName = name.toLowerCase();
+        String dataName = name.toLowerCase(Locale.ROOT);
 
         boolean exempt = false;
         if (mi.isOnline(dataName)) {

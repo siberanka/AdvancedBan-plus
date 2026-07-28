@@ -14,8 +14,8 @@ public enum SQLQuery {
             "`reason` VARCHAR(255) NULL DEFAULT NULL," +
             "`operator` VARCHAR(16) NULL DEFAULT NULL," +
             "`punishmentType` VARCHAR(16) NULL DEFAULT NULL," +
-            "`start` LONG DEFAULT NULL," +
-            "`end` LONG DEFAULT NULL," +
+            "`start` BIGINT DEFAULT NULL," +
+            "`end` BIGINT DEFAULT NULL," +
             "`calculation` VARCHAR(50) NULL DEFAULT NULL," +
             "PRIMARY KEY (`id`))",
 
@@ -38,8 +38,8 @@ public enum SQLQuery {
             "`reason` VARCHAR(255) NULL DEFAULT NULL," +
             "`operator` VARCHAR(16) NULL DEFAULT NULL," +
             "`punishmentType` VARCHAR(16) NULL DEFAULT NULL," +
-            "`start` LONG DEFAULT NULL," +
-            "`end` LONG DEFAULT NULL," +
+            "`start` BIGINT DEFAULT NULL," +
+            "`end` BIGINT DEFAULT NULL," +
             "`calculation` VARCHAR(50) NULL DEFAULT NULL," +
             "PRIMARY KEY (`id`))",
 

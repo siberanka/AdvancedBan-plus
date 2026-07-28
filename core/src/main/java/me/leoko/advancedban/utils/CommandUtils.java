@@ -7,6 +7,8 @@ import me.leoko.advancedban.manager.PunishmentManager;
 import me.leoko.advancedban.manager.UUIDManager;
 import me.leoko.advancedban.utils.litebans.LiteBansCompatibility;
 
+import java.util.Locale;
+
 public class CommandUtils {
     public static Punishment getPunishment(String target, PunishmentType type) {
         return type == PunishmentType.MUTE
@@ -26,7 +28,7 @@ public class CommandUtils {
                     true, "NAME", String.valueOf(name));
             return null;
         }
-        String uuid = UUIDManager.get().getUUID(name.toLowerCase());
+        String uuid = UUIDManager.get().getUUID(name.toLowerCase(Locale.ROOT));
 
         if (uuid == null)
             MessageManager.sendMessage(input.getSender(), "General.FailedFetch",
@@ -39,7 +41,7 @@ public class CommandUtils {
     public static String processIP(Command.CommandInput input) {
         String name = LiteBansCompatibility.providePlayerTarget(input.getPrimaryData());
         input.next();
-        if (Security.isValidIpV4(name)) {
+        if (Security.isValidIpAddress(name)) {
             return name;
         }
         if (!Security.isValidPlayerName(name)) {
@@ -47,7 +49,7 @@ public class CommandUtils {
                     true, "NAME", String.valueOf(name));
             return null;
         }
-		String ip = Universal.get().getIps().get(name);
+		String ip = Universal.get().getIps().get(name.toLowerCase(Locale.ROOT));
 
 		if (ip == null)
 		    MessageManager.sendMessage(input.getSender(), "Ipban.IpNotCashed",

@@ -4,6 +4,8 @@ General:
   LayoutNotFound: "&cThere is no layout called %NAME%"
   InvalidArguments: "&cInvalid or unsafe command arguments."
   RateLimited: "&cPlease slow down before using another moderation command."
+  PluginUnavailable: "&cAdvancedBan is temporarily unavailable while its state is being validated."
+  StorageFailure: "&cThe operation was not completed because storage did not confirm the change."
   # This will be the replacement for the %DURATION% variable
   TimeLayoutD: "%D%day(s) %H%h %M%min and %S%sec"
   TimeLayoutH: "%H%hour(s) %M%min and %S%sec"
@@ -86,6 +88,7 @@ Console:
   PunishmentOverwriteBlocked: "&cAdvancedBan blocked an attempt to overwrite an existing punishment."
   PunishmentDuplicateBlocked: "&cAdvancedBan blocked a concurrent duplicate %TYPE% for %NAME%."
   PunishmentTransactionFailed: "&cPunishment was not created because its database transaction failed."
+  PunishmentRevokeFailed: "&cPunishment #%ID% was not revoked because the database update failed."
   PunishmentMissingUuid: "&cAdvancedBan did not save %TYPE% because there is no fetched UUID."
   PunishmentIdUpdateFailed: "&cCould not update punishment ID. Please restart the server to resolve this issue."
   WarnActionExecuted: "Executing command: %COMMAND%"
@@ -106,7 +109,8 @@ ErrorSolutions:
   VoiceChat: "Update Simple Voice Chat and keep VoiceChat.MuteIntegration.Enabled false until the voicechat service loads cleanly."
 
 AdvancedBan:
-  Reloaded: "&aReloaded! YAML files were checked and repaired if needed."
+  Reloaded: "&aReloaded! YAML, database, caches and integrations were validated."
+  ReloadFailed: "&cReload failed safely. AdvancedBan is locked down; inspect error.log and restart the server."
   Help:
   - "&8"
   - "&c&lAdvancedBan &7Command Help"
@@ -658,3 +662,7 @@ Check:
   NotFound: "&cSorry we have not been able to find %NAME%"
   Cached: "&a&ocached"
   NotCached: "&c&onot cached"
+  Unavailable: "&c&oUnavailable"
+  None: "&a&oNone"
+  Permanent: "&c&oPermanent"
+  Temporary: "&e%DURATION%"

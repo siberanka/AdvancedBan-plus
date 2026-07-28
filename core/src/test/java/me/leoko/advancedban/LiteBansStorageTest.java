@@ -78,6 +78,26 @@ public class LiteBansStorageTest {
     }
 
     @Test
+    public void shouldRollbackLiteBansInsertWhenMetadataWriteFails() throws Exception {
+        Universal.get().setup(new TestMethods(dataFolder, Map.of("Database.database-format", "litebans")));
+        try {
+            DatabaseManager.get().executeRawStatement("DROP TABLE litebans_advancedban_meta");
+            Punishment punishment = new Punishment("rollback", "rollback", "Rollback test",
+                    "JUnit5", PunishmentType.MUTE, TimeManager.getTime(), -1, "layout", -1);
+
+            assertFalse(punishment.create(), "A partial LiteBans transaction must report failure");
+            try (ResultSet rs = DatabaseManager.get().executeRawResultStatement(
+                    "SELECT COUNT(*) AS count FROM litebans_mutes")) {
+                assertNotNull(rs);
+                assertTrue(rs.next());
+                assertEquals(0, rs.getInt("count"), "Main LiteBans row must be rolled back");
+            }
+        } finally {
+            Universal.get().shutdown();
+        }
+    }
+
+    @Test
     public void shouldExposeApiStateAndIsolateFailingEventListeners() {
         Universal.get().setup(new TestMethods(dataFolder, Map.of("litebans-api-support", true)));
         Events.Listener failing = new Events.Listener() {

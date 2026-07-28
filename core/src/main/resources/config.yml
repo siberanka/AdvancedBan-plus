@@ -111,6 +111,16 @@ UUID-Fetcher:
     URL: "https://us.mc-api.net/v3/uuid/%NAME%"
     Key: "uuid"
 
+Check:
+  GeoLookup:
+    # Sends a player's literal IP address to the configured JSON service when /check is used.
+    # Keep disabled unless your privacy policy permits this external lookup.
+    Enabled: false
+    # HTTPS endpoint. %IP% is replaced only after the value is validated as a literal IPv4/IPv6 address.
+    URL: "https://ipapi.co/%IP%/json/"
+    # JSON key path containing the country name. Nested keys can use the "|" separator.
+    Key: "country_name"
+
 # These are the commands that will be performed on warns
 # If you skip a number the command from before will be performed
 # You can also use non-AdvancedBan-Commands like 'broadcast' or 'clear %PLAYER%
@@ -323,6 +333,14 @@ Security:
   HttpConnectTimeoutMillis: 3000
   # Read timeout for external HTTP calls.
   HttpReadTimeoutMillis: 3000
+  # Maximum decoded characters accepted from UUID/update helper HTTP responses.
+  MaxHttpResponseChars: 65536
+  # Maximum cached online/resolved name-to-UUID mappings.
+  UUIDCacheMaxEntries: 10000
+  PluginMessaging:
+    # Bungee only. Accept punishment payloads sent by trusted backend servers.
+    # Keep false unless every backend and the proxy channel are under your control.
+    AcceptRemotePunishments: false
   CommandRateLimit:
     # Limits repeated moderation commands from the same sender.
     Enabled: true

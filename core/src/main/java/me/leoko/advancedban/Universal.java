@@ -37,7 +37,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class Universal {
 
-    private static Universal instance = null;
+    private static final Universal INSTANCE = new Universal();
 
     public static void setRedis(boolean redis) {
         Universal.redis = redis;
@@ -45,8 +45,11 @@ public class Universal {
 
     private final Map<String, String> ips = new ConcurrentHashMap<>();
     private final Object lifecycleLock = new Object();
+    private final Object debugLogLock = new Object();
+    private final Object errorLogLock = new Object();
     private MethodInterface mi;
     private LogManager logManager;
+    private volatile File lastDataFolder;
     private volatile GitHubUpdateChecker.Result lastUpdateCheck;
     private volatile LifecycleState lifecycleState = LifecycleState.NEW;
 
@@ -65,7 +68,7 @@ public class Universal {
      * @return the universal instance
      */
     public static Universal get() {
-        return instance == null ? instance = new Universal() : instance;
+        return INSTANCE;
     }
 
     /**
@@ -80,6 +83,7 @@ public class Universal {
             }
             lifecycleState = LifecycleState.STARTING;
             this.mi = Objects.requireNonNull(mi, "Platform methods");
+            this.lastDataFolder = mi.getDataFolder();
             ips.clear();
             lastUpdateCheck = null;
             redis = false;
@@ -120,6 +124,7 @@ public class Universal {
                 }
 
                 lifecycleState = LifecycleState.ACTIVE;
+                revalidateOnlinePlayers();
                 if (!mi.isUnitTesting()) {
                     requestUpdateCheck(null);
                 }
@@ -166,8 +171,84 @@ public class Universal {
         }
     }
 
+    public boolean reload() {
+        synchronized (lifecycleLock) {
+            if (lifecycleState != LifecycleState.ACTIVE || mi == null) {
+                return false;
+            }
+            lifecycleState = LifecycleState.RELOADING;
+            try {
+                mi.loadFiles();
+                validateLoadedFiles(mi);
+                UpdateManager.get().setup();
+                validateLoadedFiles(mi);
+
+                DiscordWebhookManager.get().clear();
+                CommandManager.get().clearRateLimits();
+                LiteBansCompatibility.shutdown();
+                PunishmentManager.get().clear();
+                UUIDManager.get().clear();
+
+                UUIDManager.get().setup();
+                DatabaseManager.get().setup(mi.getBoolean(mi.getConfig(), "UseMySQL", false));
+                if (!DatabaseManager.get().isConnectionValid()) {
+                    throw new IllegalStateException("Database pool failed reload validation.");
+                }
+                PunishmentManager.get().setup();
+                LiteBansCompatibility.setup();
+                lifecycleState = LifecycleState.ACTIVE;
+                revalidateOnlinePlayers();
+                return true;
+            } catch (RuntimeException | LinkageError ex) {
+                lifecycleState = LifecycleState.FAILED;
+                safeSetupRollback(ex);
+                return false;
+            }
+        }
+    }
+
     public boolean isOperational() {
         return lifecycleState == LifecycleState.ACTIVE;
+    }
+
+    private void revalidateOnlinePlayers() {
+        MethodInterface methods = mi;
+        if (methods == null) {
+            return;
+        }
+        methods.runSync(() -> {
+            Object[] players = methods.getOnlinePlayers();
+            if (players == null) {
+                return;
+            }
+            for (Object player : players) {
+                if (player == null) {
+                    continue;
+                }
+                String name;
+                String ip;
+                try {
+                    name = methods.getName(player);
+                    ip = methods.getIP(player);
+                } catch (RuntimeException ex) {
+                    debugException(ex);
+                    continue;
+                }
+                methods.runAsync(() -> {
+                    if (!isOperational() || mi != methods || !methods.isOnline(name)) {
+                        return;
+                    }
+                    String denial = callConnection(name, ip);
+                    if (!methods.isOnline(name)) {
+                        PunishmentManager.get().discard(name);
+                        return;
+                    }
+                    if (denial != null) {
+                        methods.kickPlayer(name, denial);
+                    }
+                });
+            }
+        });
     }
 
     public boolean isLockdownOnError() {
@@ -250,7 +331,9 @@ public class Universal {
         if (!isOperational()) {
             return;
         }
-        if (!mi.getBoolean(mi.getConfig(), "UpdateChecker.Enabled", true)) {
+        MethodInterface requestMethods = mi;
+        if (requestMethods == null
+                || !requestMethods.getBoolean(requestMethods.getConfig(), "UpdateChecker.Enabled", true)) {
             if (requester != null) {
                 sendUpdateMessage(requester, "Update.Disabled", "&cGitHub update checks are disabled in config.");
             }
@@ -259,9 +342,12 @@ public class Universal {
         if (requester != null) {
             sendUpdateMessage(requester, "Update.Checking", "&7Checking GitHub releases...");
         }
-        mi.runAsync(() -> {
+        requestMethods.runAsync(() -> {
             try {
-                GitHubUpdateChecker.Result result = new GitHubUpdateChecker().check(mi.getVersion());
+                GitHubUpdateChecker.Result result = new GitHubUpdateChecker().check(requestMethods.getVersion());
+                if (!isOperational() || mi != requestMethods) {
+                    return;
+                }
                 lastUpdateCheck = result;
                 if (requester != null) {
                     sendUpdateResult(requester, result);
@@ -275,6 +361,9 @@ public class Universal {
                     debug(MessageManager.getMessageOrDefault("Console.UpdateCurrent", "AdvancedBan Plus is up to date according to GitHub releases."));
                 }
             } catch (Exception ex) {
+                if (!isOperational() || mi != requestMethods) {
+                    return;
+                }
                 if (requester != null) {
                     sendUpdateMessage(requester, "Update.Failed", "&cCould not check GitHub releases. See error.log for details.");
                 } else {
@@ -369,21 +458,12 @@ public class Universal {
      * @return the from url
      */
     public String getFromURL(String surl) {
-        String response = null;
         try {
-            HttpURLConnection connection = (HttpURLConnection) new URL(surl).openConnection();
-            connection.setConnectTimeout(Security.getInt("Security.HttpConnectTimeoutMillis", 3000));
-            connection.setReadTimeout(Security.getInt("Security.HttpReadTimeoutMillis", 3000));
-            connection.setUseCaches(false);
-            try (Scanner s = new Scanner(connection.getInputStream(), "UTF-8")) {
-                if (s.hasNext()) {
-                    response = Security.limit(s.next(), 64);
-                }
-            }
+            return Security.limit(Security.fetchText(surl, 64), 64);
         } catch (IOException exc) {
             debug("!! Failed to connect to URL: " + surl);
+            return null;
         }
-        return response;
     }
 
     /**
@@ -501,7 +581,7 @@ public class Universal {
             return MessageManager.getMessageOrDefault("Connection.InvalidIdentity",
                     "[AdvancedBan] Invalid connection identity");
         }
-        if (ip != null && ip.length() > 64) {
+        if (ip != null && !Security.isValidIpAddress(ip)) {
             return MessageManager.getMessageOrDefault("Connection.InvalidIdentity",
                     "[AdvancedBan] Invalid connection identity");
         }
@@ -571,7 +651,12 @@ public class Universal {
      */
     public void log(String msg) {
         String cleanMessage = Security.sanitizeForLog(msg);
-        mi.log("§8[§cAdvancedBan§8] §7" + cleanMessage);
+        MethodInterface methods = mi;
+        if (methods != null) {
+            methods.log("§8[§cAdvancedBan§8] §7" + cleanMessage);
+        } else {
+            System.err.println("[AdvancedBan] " + cleanMessage);
+        }
         debugToFile(cleanMessage);
     }
 
@@ -582,8 +667,10 @@ public class Universal {
      */
     public void debug(Object msg) {
         String cleanMessage = Security.sanitizeForLog(String.valueOf(msg));
-        if (mi.getBoolean(mi.getConfig(), "Debug", false)) {
-            mi.log("§8[§cAdvancedBan§8] §cDebug: §7" + cleanMessage);
+        MethodInterface methods = mi;
+        if (methods != null && methods.getConfig() != null
+                && methods.getBoolean(methods.getConfig(), "Debug", false)) {
+            methods.log("§8[§cAdvancedBan§8] §cDebug: §7" + cleanMessage);
         }
         debugToFile(cleanMessage);
     }
@@ -605,7 +692,10 @@ public class Universal {
         if (advice != null) {
             logMessage("Console.ErrorPossibleSolution", "&ePossible solution: %SOLUTION%", "SOLUTION", advice);
         }
-        writeErrorLog(advice == null ? stackTrace : stackTrace + "\nPossible solution: " + mi.clearFormatting(advice));
+        MethodInterface methods = mi;
+        String cleanAdvice = advice == null ? null
+                : methods == null ? Security.stripFormatting(advice) : methods.clearFormatting(advice);
+        writeErrorLog(cleanAdvice == null ? stackTrace : stackTrace + "\nPossible solution: " + cleanAdvice);
     }
 
     private String getErrorAdvice(Throwable throwable, String stackTrace) {
@@ -639,7 +729,9 @@ public class Universal {
      * @param ex the ex
      */
     public void debugSqlException(SQLException ex) {
-        if (mi.getBoolean(mi.getConfig(), "Debug", false)) {
+        MethodInterface methods = mi;
+        if (methods != null && methods.getConfig() != null
+                && methods.getBoolean(methods.getConfig(), "Debug", false)) {
             debug("§7An error has occurred with the database, the error code is: '" + ex.getErrorCode() + "'");
             debug("§7The state of the sql is: " + ex.getSQLState());
             debug("§7Error message: " + ex.getMessage());
@@ -648,52 +740,56 @@ public class Universal {
     }
 
     private void debugToFile(Object msg) {
-        File debugFile = new File(mi.getDataFolder(), "logs/latest.log");
-        File parent = debugFile.getParentFile();
-        if (parent != null && !parent.exists()) {
-            //noinspection ResultOfMethodCallIgnored
-            parent.mkdirs();
+        MethodInterface methods = mi;
+        File dataFolder = methods == null ? lastDataFolder : methods.getDataFolder();
+        if (dataFolder == null) {
+            return;
         }
-        if (!debugFile.exists()) {
-            try {
-                debugFile.createNewFile();
-            } catch (IOException ex) {
-                System.out.print("An error has occurred creating the 'latest.log' file again, check your server.");
-                System.out.print("Error message" + ex.getMessage());
+        synchronized (debugLogLock) {
+            File debugFile = new File(dataFolder, "logs/latest.log");
+            File parent = debugFile.getParentFile();
+            if (parent != null && !parent.exists() && !parent.mkdirs() && !parent.exists()) {
+                return;
             }
-        } else {
-            if (logManager != null) {
+            if (debugFile.exists() && logManager != null) {
                 logManager.checkLastLog(false);
             }
-        }
-        try {
-            FileUtils.writeStringToFile(debugFile, "[" + new SimpleDateFormat("HH:mm:ss").format(System.currentTimeMillis()) + "] " + mi.clearFormatting(Security.sanitizeForLog(String.valueOf(msg))) + "\n", "UTF8", true);
-        } catch (IOException ex) {
-            System.out.print("An error has occurred writing to 'latest.log' file.");
-            System.out.print(ex.getMessage());
+            String clean = Security.sanitizeForLog(String.valueOf(msg));
+            clean = methods == null ? Security.stripFormatting(clean) : methods.clearFormatting(clean);
+            try {
+                FileUtils.writeStringToFile(debugFile,
+                        "[" + new SimpleDateFormat("HH:mm:ss").format(System.currentTimeMillis()) + "] "
+                                + clean + "\n",
+                        "UTF8", true);
+            } catch (IOException ex) {
+                System.err.println("[AdvancedBan] Failed to write latest.log: "
+                        + Security.sanitizeForLog(ex.getMessage()));
+            }
         }
     }
 
     private void writeErrorLog(String stackTrace) {
-        if (!Security.getBoolean("ErrorLog.Enabled", true) || mi == null || mi.getDataFolder() == null) {
+        File dataFolder = mi == null ? lastDataFolder : mi.getDataFolder();
+        if (!Security.getBoolean("ErrorLog.Enabled", true) || dataFolder == null) {
             return;
         }
         int maxEntryChars = Security.getInt("ErrorLog.MaxEntryChars", 32768);
         String safeStackTrace = Security.limit(stackTrace.replace("${", "$ {").replace('\r', ' '), maxEntryChars);
         String entry = "[" + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(System.currentTimeMillis()) + "] "
                 + safeStackTrace + "\n";
-        File errorFile = new File(mi.getDataFolder(), "error.log");
-        File parent = errorFile.getParentFile();
-        if (parent != null && !parent.exists()) {
-            //noinspection ResultOfMethodCallIgnored
-            parent.mkdirs();
-        }
-        try {
-            rotateErrorLogIfNeeded(errorFile, entry.length());
-            FileUtils.writeStringToFile(errorFile, entry, "UTF8", true);
-        } catch (IOException ex) {
-            System.out.print("An error has occurred writing to 'error.log'.");
-            System.out.print(ex.getMessage());
+        synchronized (errorLogLock) {
+            File errorFile = new File(dataFolder, "error.log");
+            File parent = errorFile.getParentFile();
+            if (parent != null && !parent.exists() && !parent.mkdirs() && !parent.exists()) {
+                return;
+            }
+            try {
+                rotateErrorLogIfNeeded(errorFile, entry.getBytes(java.nio.charset.StandardCharsets.UTF_8).length);
+                FileUtils.writeStringToFile(errorFile, entry, "UTF8", true);
+            } catch (IOException ex) {
+                System.err.println("[AdvancedBan] Failed to write error.log: "
+                        + Security.sanitizeForLog(ex.getMessage()));
+            }
         }
     }
 
@@ -720,6 +816,7 @@ public class Universal {
         NEW,
         STARTING,
         ACTIVE,
+        RELOADING,
         STOPPING,
         STOPPED,
         FAILED
