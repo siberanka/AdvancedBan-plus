@@ -12,8 +12,15 @@ import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 public class CommandListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onCommand(PlayerCommandPreprocessEvent event) {
-        if (Universal.get().getMethods().callCMD(event.getPlayer(), event.getMessage())) {
-            event.setCancelled(true);
+        try {
+            if (Universal.get().getMethods().callCMD(event.getPlayer(), event.getMessage())) {
+                event.setCancelled(true);
+            }
+        } catch (RuntimeException | LinkageError ex) {
+            Universal.get().debugThrowable(ex);
+            if (Universal.get().isLockdownOnError()) {
+                event.setCancelled(true);
+            }
         }
     }
 }

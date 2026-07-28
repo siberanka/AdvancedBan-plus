@@ -3,7 +3,7 @@ package litebans.api;
 import litebans.api.exception.MissingImplementationException;
 
 public abstract class Events {
-    private static Events instance;
+    private static volatile Events instance;
 
     public static void setInstance(Events instance) {
         Events.instance = instance;

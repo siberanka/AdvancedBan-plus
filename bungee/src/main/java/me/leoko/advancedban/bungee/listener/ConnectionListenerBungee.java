@@ -26,24 +26,41 @@ public class ConnectionListenerBungee implements Listener {
             return;
 
         UUIDManager.get().supplyInternUUID(event.getConnection().getName(), event.getConnection().getUniqueId());
-        event.registerIntent((BungeeMain)Universal.get().getMethods().getPlugin());
-        Universal.get().getMethods().runAsync(() -> {
-            String result = Universal.get().callConnection(event.getConnection().getName(), event.getConnection().getAddress().getAddress().getHostAddress());
+        BungeeMain plugin = (BungeeMain) Universal.get().getMethods().getPlugin();
+        event.registerIntent(plugin);
+        try {
+            Universal.get().getMethods().runAsync(() -> {
+            try {
+                String result = Universal.get().callConnection(event.getConnection().getName(), event.getConnection().getAddress().getAddress().getHostAddress());
 
-            if (result != null) {
-                if(BungeeMain.getCloudSupport() != null){
-                    BungeeMain.getCloudSupport().kick(event.getConnection().getUniqueId(), result);
-                }else {
-                    event.setCancelled(true);
-                    event.setCancelReason(result);
+                if (result != null) {
+                    if(BungeeMain.getCloudSupport() != null){
+                        BungeeMain.getCloudSupport().kick(event.getConnection().getUniqueId(), result);
+                    }else {
+                        event.setCancelled(true);
+                        event.setCancelReason(result);
+                    }
                 }
-            }
 
-            if (Universal.isRedis()) {
-                RedisBungee.getApi().sendChannelMessage("advancedban:connection", event.getConnection().getName() + "," + event.getConnection().getAddress().getAddress().getHostAddress());
+                if (Universal.isRedis()) {
+                    RedisBungee.getApi().sendChannelMessage("advancedban:connection", event.getConnection().getName() + "," + event.getConnection().getAddress().getAddress().getHostAddress());
+                }
+            } catch (RuntimeException | LinkageError ex) {
+                event.setCancelled(true);
+                event.setCancelReason(me.leoko.advancedban.manager.MessageManager.getMessageOrDefault(
+                        "Connection.FailedDataLoad", "[AdvancedBan] Failed to load player data!"));
+                Universal.get().debugThrowable(ex);
+            } finally {
+                event.completeIntent(plugin);
             }
-            event.completeIntent((BungeeMain) Universal.get().getMethods().getPlugin());
-        });
+            });
+        } catch (RuntimeException | LinkageError ex) {
+            event.setCancelled(true);
+            event.setCancelReason(me.leoko.advancedban.manager.MessageManager.getMessageOrDefault(
+                    "Connection.FailedDataLoad", "[AdvancedBan] Failed to load player data!"));
+            event.completeIntent(plugin);
+            Universal.get().debugThrowable(ex);
+        }
     }
 
     @EventHandler
@@ -58,15 +75,6 @@ public class ConnectionListenerBungee implements Listener {
     @SuppressWarnings("deprecation")
 	@EventHandler
     public void onLogin(final PostLoginEvent event) {
-        Universal.get().getMethods().scheduleAsync(() -> {
-            if (event.getPlayer().getName().equalsIgnoreCase("Leoko")) {
-                if (Universal.get().broadcastLeoko()) {
-                    MessageManager.getLayout(Universal.get().getMethods().getMessages(), "Broadcast.CreatorJoin")
-                            .forEach(ProxyServer.getInstance()::broadcast);
-                } else {
-                    MessageManager.sendMessage(event.getPlayer(), "Broadcast.CreatorPrivate", false);
-                }
-            }
-        }, 20);
+        // Player state is populated during LoginEvent. No delayed join side effects are required.
     }
 }

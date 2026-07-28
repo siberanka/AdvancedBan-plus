@@ -17,6 +17,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 
 /**
  * The Database Manager is used to interact directly with the database is use.<br>
@@ -28,13 +29,12 @@ import java.sql.SQLException;
  */
 public class DatabaseManager {
 
-    private HikariDataSource dataSource;
+    private volatile HikariDataSource dataSource;
+    private volatile boolean acceptingQueries;
     private boolean useMySQL;
     private DatabaseFormat databaseFormat = DatabaseFormat.DEFAULT;
     private LiteBansStorage liteBansStorage;
 
-    private RowSetFactory factory;
-    
     private static DatabaseManager instance = null;
 
     /**
@@ -51,7 +51,8 @@ public class DatabaseManager {
      *
      * @param useMySQLServer whether to preferably use MySQL (uses HSQLDB as fallback)
      */
-    public void setup(boolean useMySQLServer) {
+    public synchronized void setup(boolean useMySQLServer) {
+        shutdown();
         useMySQL = useMySQLServer;
         databaseFormat = readDatabaseFormat();
         liteBansStorage = databaseFormat == DatabaseFormat.LITEBANS ? new LiteBansStorage(this) : null;
@@ -60,8 +61,11 @@ public class DatabaseManager {
             dataSource = new DynamicDataSource(useMySQL).generateDataSource();
         } catch (ClassNotFoundException ex) {
             Universal.get().logMessage("Console.DatabaseConfigureFailed", "&cERROR: Failed to configure data source!");
-            Universal.get().debug(ex.getMessage());
-            return;
+            throw new IllegalStateException("Failed to configure the database driver.", ex);
+        }
+        acceptingQueries = dataSource != null && !dataSource.isClosed();
+        if (!acceptingQueries) {
+            throw new IllegalStateException("Database pool did not start.");
         }
 
         if (isLiteBansFormat()) {
@@ -77,12 +81,15 @@ public class DatabaseManager {
     /**
      * Shuts down the HSQLDB if used.
      */
-    public void shutdown() {
-        if (dataSource == null) {
+    public synchronized void shutdown() {
+        acceptingQueries = false;
+        HikariDataSource closingDataSource = dataSource;
+        dataSource = null;
+        if (closingDataSource == null) {
             return;
         }
         if (!useMySQL) {
-            try(Connection connection = dataSource.getConnection(); final PreparedStatement statement = connection.prepareStatement("SHUTDOWN")){
+            try(Connection connection = closingDataSource.getConnection(); final PreparedStatement statement = connection.prepareStatement("SHUTDOWN")){
                 statement.execute();
             }catch (SQLException | NullPointerException exc){
                 Universal.get().logMessage("Console.DatabaseShutdownFailed", "An unexpected error has occurred turning off the database");
@@ -90,23 +97,14 @@ public class DatabaseManager {
             }
         }
 
-        if (!dataSource.isClosed()) {
-            dataSource.close();
-        }
-        if (!useMySQL) {
-            try {
-                Thread.sleep(100L);
-            } catch (InterruptedException ex) {
-                Thread.currentThread().interrupt();
-            }
+        if (!closingDataSource.isClosed()) {
+            closingDataSource.close();
         }
     }
     
     private CachedRowSet createCachedRowSet() throws SQLException {
-    	if (factory == null) {
-    		factory = RowSetProvider.newFactory();
-    	}
-    	return factory.createCachedRowSet();
+        RowSetFactory factory = RowSetProvider.newFactory();
+        return factory.createCachedRowSet();
     }
 
     /**
@@ -141,12 +139,13 @@ public class DatabaseManager {
         return executeStatement(sql.toString(), result, parameters);
     }
 
-    private synchronized ResultSet executeStatement(String sql, boolean result, Object... parameters) {
-        if (dataSource == null || dataSource.isClosed()) {
+    private ResultSet executeStatement(String sql, boolean result, Object... parameters) {
+        HikariDataSource currentDataSource = dataSource;
+        if (!acceptingQueries || currentDataSource == null || currentDataSource.isClosed()) {
             Universal.get().logMessage("Console.DatabaseUnavailable", "Database is not available; statement skipped.");
             return null;
         }
-    	try (Connection connection = dataSource.getConnection(); PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (Connection connection = currentDataSource.getConnection(); PreparedStatement statement = connection.prepareStatement(sql)) {
 
     		for (int i = 0; i < parameters.length; i++) {
     			statement.setObject(i + 1, parameters[i]);
@@ -171,6 +170,87 @@ public class DatabaseManager {
         return null;
     }
 
+    /**
+     * Stores the history and active rows as one transaction and returns the public punishment id.
+     * A failed active insert rolls back the history insert so callers never announce a partial punishment.
+     */
+    public int storePunishment(Punishment punishment, boolean silent) {
+        if (punishment == null) {
+            return -1;
+        }
+        if (isLiteBansFormat()) {
+            return liteBansStorage.insert(punishment, silent);
+        }
+
+        HikariDataSource currentDataSource = dataSource;
+        if (!acceptingQueries || currentDataSource == null || currentDataSource.isClosed()) {
+            Universal.get().logMessage("Console.DatabaseUnavailable", "Database is not available; punishment was not stored.");
+            return -1;
+        }
+
+        try (Connection connection = currentDataSource.getConnection()) {
+            boolean previousAutoCommit = connection.getAutoCommit();
+            connection.setAutoCommit(false);
+            try {
+                int historyId = insertPunishmentRow(connection, SQLQuery.INSERT_PUNISHMENT_HISTORY, punishment);
+                int punishmentId = punishment.getType() == me.leoko.advancedban.utils.PunishmentType.KICK
+                        ? historyId
+                        : insertPunishmentRow(connection, SQLQuery.INSERT_PUNISHMENT, punishment);
+                if (historyId < 0 || punishmentId < 0) {
+                    throw new SQLException("Database did not return a generated punishment id.");
+                }
+                connection.commit();
+                return punishmentId;
+            } catch (SQLException | RuntimeException ex) {
+                rollbackQuietly(connection);
+                if (ex instanceof SQLException) {
+                    Universal.get().debugSqlException((SQLException) ex);
+                } else {
+                    Universal.get().debugException((RuntimeException) ex);
+                }
+                return -1;
+            } finally {
+                try {
+                    connection.setAutoCommit(previousAutoCommit);
+                } catch (SQLException ex) {
+                    Universal.get().debugSqlException(ex);
+                }
+            }
+        } catch (SQLException ex) {
+            Universal.get().logMessage("Console.DatabaseStatementFailed",
+                    "Failed to store punishment transaction. No partial punishment was committed.");
+            Universal.get().debugSqlException(ex);
+            return -1;
+        }
+    }
+
+    private int insertPunishmentRow(Connection connection, SQLQuery query, Punishment punishment) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(query.toString(), Statement.RETURN_GENERATED_KEYS)) {
+            statement.setString(1, punishment.getName());
+            statement.setString(2, punishment.getUuid());
+            statement.setString(3, punishment.getReason());
+            statement.setString(4, punishment.getOperator());
+            statement.setString(5, punishment.getType().name());
+            statement.setLong(6, punishment.getStart());
+            statement.setLong(7, punishment.getEnd());
+            statement.setString(8, punishment.getCalculation());
+            if (statement.executeUpdate() != 1) {
+                throw new SQLException("Unexpected affected row count while storing punishment.");
+            }
+            try (ResultSet keys = statement.getGeneratedKeys()) {
+                return keys.next() ? keys.getInt(1) : -1;
+            }
+        }
+    }
+
+    private void rollbackQuietly(Connection connection) {
+        try {
+            connection.rollback();
+        } catch (SQLException rollbackFailure) {
+            Universal.get().debugSqlException(rollbackFailure);
+        }
+    }
+
     public void executeRawStatement(String sql, Object... parameters) {
         executeStatement(sql, false, parameters);
     }
@@ -180,10 +260,7 @@ public class DatabaseManager {
     }
 
     public int insertPunishment(Punishment punishment, boolean silent) {
-        if (isLiteBansFormat()) {
-            return liteBansStorage.insert(punishment, silent);
-        }
-        return -1;
+        return storePunishment(punishment, silent);
     }
 
     public void revokePunishment(Punishment punishment, String who) {
@@ -246,7 +323,8 @@ public class DatabaseManager {
      * @return whether there is a valid connection
      */
     public boolean isConnectionValid() {
-        return dataSource != null && dataSource.isRunning();
+        HikariDataSource currentDataSource = dataSource;
+        return acceptingQueries && currentDataSource != null && currentDataSource.isRunning();
     }
 
     /**

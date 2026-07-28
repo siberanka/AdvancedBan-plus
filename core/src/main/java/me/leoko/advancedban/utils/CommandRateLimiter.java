@@ -34,6 +34,10 @@ public final class CommandRateLimiter {
         }
     }
 
+    public void clear() {
+        buckets.clear();
+    }
+
     private void cleanup(long now) {
         if (buckets.size() < 512) {
             return;

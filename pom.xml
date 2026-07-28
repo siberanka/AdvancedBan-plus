@@ -6,7 +6,7 @@
     
     <groupId>me.leoko.advancedban</groupId>
     <artifactId>AdvancedBan</artifactId>
-    <version>2026.06.29.9</version>
+    <version>2026.07.28.1</version>
     <packaging>pom</packaging>
 
     <modules>
@@ -24,9 +24,14 @@
         <skipTests>false</skipTests>
         <trimStackTrace>true</trimStackTrace>
         
-        <java.release>21</java.release>
-        <junit.version>6.1.1</junit.version>
-        <junit.platform.version>6.1.1</junit.platform.version>
+        <!-- Java 11 bytecode runs on the Java 11-25 runtimes used by MC 1.16.x-26.x. -->
+        <java.release>11</java.release>
+        <junit.version>5.13.4</junit.version>
+        <junit.platform.version>1.13.4</junit.platform.version>
+        <bukkit.api.groupId>org.spigotmc</bukkit.api.groupId>
+        <bukkit.api.artifactId>spigot-api</bukkit.api.artifactId>
+        <bukkit.api.version>1.16.5-R0.1-SNAPSHOT</bukkit.api.version>
+        <project.build.outputTimestamp>2026-07-28T00:00:00Z</project.build.outputTimestamp>
     </properties>
 
     <distributionManagement>
@@ -69,6 +74,9 @@
                     <useSystemClassLoader>false</useSystemClassLoader>
                     <skipTests>${skipTests}</skipTests>
                     <trimStackTrace>${trimStackTrace}</trimStackTrace>
+                    <systemPropertyVariables>
+                        <java.io.tmpdir>${project.build.directory}/test-tmp</java.io.tmpdir>
+                    </systemPropertyVariables>
                 </configuration>
                 <dependencies>
                     <dependency>
@@ -79,6 +87,29 @@
                     </dependency>
                 </dependencies>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>3.6.2</version>
+                <executions>
+                    <execution>
+                        <id>enforce-build-runtime</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireJavaVersion>
+                                    <version>[11,)</version>
+                                </requireJavaVersion>
+                                <requireMavenVersion>
+                                    <version>[3.9,)</version>
+                                </requireMavenVersion>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
         <resources>
             <resource>
@@ -87,4 +118,23 @@
             </resource>
         </resources>
     </build>
+
+    <profiles>
+        <profile>
+            <id>paper-1.21</id>
+            <properties>
+                <bukkit.api.groupId>org.spigotmc</bukkit.api.groupId>
+                <bukkit.api.artifactId>spigot-api</bukkit.api.artifactId>
+                <bukkit.api.version>1.21.11-R0.2-SNAPSHOT</bukkit.api.version>
+            </properties>
+        </profile>
+        <profile>
+            <id>paper-26</id>
+            <properties>
+                <bukkit.api.groupId>io.papermc.paper</bukkit.api.groupId>
+                <bukkit.api.artifactId>paper-api</bukkit.api.artifactId>
+                <bukkit.api.version>26.2.build.84-stable</bukkit.api.version>
+            </properties>
+        </profile>
+    </profiles>
 </project>

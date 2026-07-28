@@ -18,8 +18,14 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
+import java.sql.ResultSet;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created by Leo on 07.08.2017.
@@ -101,6 +107,43 @@ public class PunishmentTest {
 
         assertFalse(universal.muteCommandMatches("broadcast party msg".split(" "), muteCommand),
                 "Different base command entirely should not be blocked as a mute command");
+    }
+
+    @Test
+    public void shouldAtomicallyBlockConcurrentDuplicateBans() throws Exception {
+        int workers = 8;
+        ExecutorService executor = Executors.newFixedThreadPool(workers);
+        CountDownLatch start = new CountDownLatch(1);
+        try {
+            List<Future<?>> futures = new java.util.ArrayList<>();
+            for (int i = 0; i < workers; i++) {
+                futures.add(executor.submit(() -> {
+                    start.await();
+                    new Punishment("raceuser", "race-user-id", "Concurrent test", "JUnit5",
+                            PunishmentType.BAN, TimeManager.getTime(), -1, null, -1).create(true);
+                    return null;
+                }));
+            }
+            start.countDown();
+            for (Future<?> future : futures) {
+                future.get(10, TimeUnit.SECONDS);
+            }
+        } finally {
+            executor.shutdownNow();
+            assertTrue(executor.awaitTermination(10, TimeUnit.SECONDS));
+        }
+
+        try (ResultSet active = DatabaseManager.get().executeRawResultStatement(
+                "SELECT COUNT(*) AS total FROM Punishments WHERE uuid = ?", "race-user-id");
+             ResultSet history = DatabaseManager.get().executeRawResultStatement(
+                     "SELECT COUNT(*) AS total FROM PunishmentHistory WHERE uuid = ?", "race-user-id")) {
+            assertNotNull(active);
+            assertNotNull(history);
+            assertTrue(active.next());
+            assertTrue(history.next());
+            assertEquals(1, active.getInt("total"), "Only one active ban may be committed");
+            assertEquals(1, history.getInt("total"), "History and active rows must commit together");
+        }
     }
 
     @AfterAll

@@ -48,6 +48,9 @@ public class BungeeMain extends Plugin {
 
     @Override
     public void onDisable() {
+        ProxyServer.getInstance().getScheduler().cancel(this);
         Universal.get().shutdown();
+        instance = null;
+        cloudSupport = null;
     }
 }

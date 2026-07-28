@@ -252,22 +252,23 @@ public class BungeeMethods implements MethodInterface {
 
     @Override
     public void scheduleAsyncRep(Runnable rn, long l1, long l2) {
-        ProxyServer.getInstance().getScheduler().schedule(getPlugin(), rn, l1 * 50, l2 * 50, TimeUnit.MILLISECONDS);
+        ProxyServer.getInstance().getScheduler().schedule(getPlugin(), guarded(rn),
+                Security.ticksToMillis(l1), Math.max(50L, Security.ticksToMillis(l2)), TimeUnit.MILLISECONDS);
     }
 
     @Override
     public void scheduleAsync(Runnable rn, long l1) {
-        ProxyServer.getInstance().getScheduler().schedule(getPlugin(), rn, l1 * 50, TimeUnit.MILLISECONDS);
+        ProxyServer.getInstance().getScheduler().schedule(getPlugin(), guarded(rn), Security.ticksToMillis(l1), TimeUnit.MILLISECONDS);
     }
 
     @Override
     public void runAsync(Runnable rn) {
-        ProxyServer.getInstance().getScheduler().runAsync(getPlugin(), rn);
+        ProxyServer.getInstance().getScheduler().runAsync(getPlugin(), guarded(rn));
     }
 
     @Override
     public void runSync(Runnable rn) {
-        rn.run(); //TODO WARNING not Sync to Main-Thread
+        guarded(rn).run();
     }
 
     @Override
@@ -291,7 +292,10 @@ public class BungeeMethods implements MethodInterface {
 
     @Override
     public String getIP(Object player) {
-        return ((ProxiedPlayer) player).getAddress().getHostName();
+        ProxiedPlayer proxiedPlayer = (ProxiedPlayer) player;
+        return proxiedPlayer.getAddress() == null || proxiedPlayer.getAddress().getAddress() == null
+                ? null
+                : proxiedPlayer.getAddress().getAddress().getHostAddress();
     }
 
     @Override
@@ -451,5 +455,17 @@ public class BungeeMethods implements MethodInterface {
     @Override
     public boolean isUnitTesting() {
         return false;
+    }
+
+    private Runnable guarded(Runnable task) {
+        return () -> {
+            try {
+                if (task != null && Universal.get().isOperational()) {
+                    task.run();
+                }
+            } catch (RuntimeException | LinkageError ex) {
+                Universal.get().debugThrowable(ex);
+            }
+        };
     }
 }

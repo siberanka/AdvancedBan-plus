@@ -18,12 +18,19 @@ public class ChatListenerBungee implements Listener {
         if (!(event.getSender() instanceof ProxiedPlayer)) {
             return;
         }
-        if (!event.isCommand()) {
-            if (Universal.get().getMethods().callChat(event.getSender())) {
-                event.setCancelled(true);
+        try {
+            if (!event.isCommand()) {
+                if (Universal.get().getMethods().callChat(event.getSender())) {
+                    event.setCancelled(true);
+                }
+            } else {
+                if (Universal.get().getMethods().callCMD(event.getSender(), event.getMessage())) {
+                    event.setCancelled(true);
+                }
             }
-        } else {
-            if (Universal.get().getMethods().callCMD(event.getSender(), event.getMessage())) {
+        } catch (RuntimeException | LinkageError ex) {
+            Universal.get().debugThrowable(ex);
+            if (Universal.get().isLockdownOnError()) {
                 event.setCancelled(true);
             }
         }

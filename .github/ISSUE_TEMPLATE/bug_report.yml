@@ -13,19 +13,19 @@ body:
     attributes:
       label: AdvancedBan Plus version
       description: Run `/advancedban` or check the jar/release name.
-      placeholder: "2026.06.29.4"
+      placeholder: "2026.07.28.1"
     validations:
       required: true
   - type: dropdown
     id: module
     attributes:
-      label: Module / platform
-      description: Which jar and server side is affected?
+      label: Host platform
+      description: Install the Bundle JAR only, then select the server/proxy platform where the problem occurs.
       options:
         - Bukkit / Spigot / Paper
+        - Folia / region-threaded fork
         - BungeeCord / Waterfall
         - Velocity
-        - Bundle
         - LiteBans API compatibility
         - Simple Voice Chat integration
         - Other / unsure

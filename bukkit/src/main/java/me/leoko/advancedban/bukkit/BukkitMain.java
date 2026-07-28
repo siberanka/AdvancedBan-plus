@@ -6,7 +6,6 @@ import me.leoko.advancedban.bukkit.listener.CommandListener;
 import me.leoko.advancedban.bukkit.listener.ConnectionListener;
 import me.leoko.advancedban.bukkit.listener.InternalListener;
 import org.bukkit.Bukkit;
-import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.lang.reflect.Method;
@@ -31,18 +30,33 @@ public class BukkitMain extends JavaPlugin {
         registerVoicechatHook();
 
         Bukkit.getOnlinePlayers().forEach(player -> {
-            AsyncPlayerPreLoginEvent apple = new AsyncPlayerPreLoginEvent(player.getName(), player.getAddress().getAddress(), player.getUniqueId());
-            connListener.onConnect(apple);
-            if (apple.getLoginResult() == AsyncPlayerPreLoginEvent.Result.KICK_BANNED) {
-                Universal.get().getMethods().kickPlayer(player.getName(), apple.getKickMessage());
-            }
+            String name = player.getName();
+            java.util.UUID uuid = player.getUniqueId();
+            String ip = player.getAddress() == null || player.getAddress().getAddress() == null
+                    ? null : player.getAddress().getAddress().getHostAddress();
+            Universal.get().getMethods().runAsync(() -> {
+                if (!Universal.get().isOperational()) {
+                    return;
+                }
+                me.leoko.advancedban.manager.UUIDManager.get().supplyInternUUID(name, uuid);
+                String denial = Universal.get().callConnection(name, ip);
+                if (denial != null) {
+                    Universal.get().getMethods().kickPlayer(name, denial);
+                }
+            });
         });
 
     }
 
     @Override
     public void onDisable() {
+        if (FoliaSchedulerBridge.isFolia()) {
+            FoliaSchedulerBridge.cancelTasks(this);
+        } else {
+            Bukkit.getScheduler().cancelTasks(this);
+        }
         Universal.get().shutdown();
+        instance = null;
     }
 
     private void registerVoicechatHook() {

@@ -4,7 +4,10 @@ import me.leoko.advancedban.MethodInterface;
 import me.leoko.advancedban.Universal;
 import me.leoko.advancedban.utils.Security;
 import org.yaml.snakeyaml.DumperOptions;
+import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.constructor.SafeConstructor;
+import org.yaml.snakeyaml.representer.Representer;
 
 import java.io.File;
 import java.io.IOException;
@@ -16,6 +19,7 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -50,6 +54,16 @@ public class YamlMaintenanceManager {
         File file = new File(mi.getDataFolder(), fileName);
         if (!file.exists()) {
             copyDefault(fileName, file);
+            return true;
+        }
+        long maxFileBytes = Math.max(64 * 1024L,
+                Math.min(16 * 1024 * 1024L, getInt("YamlMaintenance.MaxFileBytes", 2 * 1024 * 1024)));
+        if (Files.size(file.toPath()) > maxFileBytes) {
+            backup(file, "oversized");
+            copyDefault(fileName, file);
+            Universal.get().logMessage("Console.YamlReplacedOversized",
+                    "&cReplaced oversized %FILE% with the bundled default. A backup was created.",
+                    "FILE", fileName);
             return true;
         }
 
@@ -187,6 +201,20 @@ public class YamlMaintenanceManager {
         String safeReason = Security.sanitizeForStorage(reason).replaceAll("[^A-Za-z0-9_-]", "-");
         Files.copy(file.toPath(), new File(backupFolder, file.getName() + "." + stamp + "." + safeReason + ".bak").toPath(),
                 StandardCopyOption.REPLACE_EXISTING);
+        pruneBackups(backupFolder, file.getName());
+    }
+
+    private void pruneBackups(File backupFolder, String fileName) throws IOException {
+        int maxBackups = Math.max(1, Math.min(50, getInt("YamlMaintenance.MaxBackupsPerFile", 10)));
+        File[] backups = backupFolder.listFiles((directory, name) ->
+                name.startsWith(fileName + ".") && name.endsWith(".bak"));
+        if (backups == null || backups.length <= maxBackups) {
+            return;
+        }
+        Arrays.sort(backups, Comparator.comparingLong(File::lastModified));
+        for (int i = 0; i < backups.length - maxBackups; i++) {
+            Files.deleteIfExists(backups[i].toPath());
+        }
     }
 
     private boolean getBoolean(String path, boolean def) {
@@ -198,11 +226,26 @@ public class YamlMaintenanceManager {
         }
     }
 
+    private int getInt(String path, int def) {
+        try {
+            MethodInterface mi = Universal.get().getMethods();
+            return mi.getConfig() == null ? def : mi.getInteger(mi.getConfig(), path, def);
+        } catch (RuntimeException ex) {
+            return def;
+        }
+    }
+
     private Yaml createYaml() {
+        LoaderOptions loaderOptions = new LoaderOptions();
+        loaderOptions.setAllowDuplicateKeys(false);
+        loaderOptions.setMaxAliasesForCollections(32);
+        loaderOptions.setNestingDepthLimit(50);
+        loaderOptions.setCodePointLimit(2 * 1024 * 1024);
+
         DumperOptions options = new DumperOptions();
         options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
         options.setPrettyFlow(true);
         options.setIndent(2);
-        return new Yaml(options);
+        return new Yaml(new SafeConstructor(loaderOptions), new Representer(options), options, loaderOptions);
     }
 }

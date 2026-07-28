@@ -38,24 +38,29 @@ public class CommandManager {
             MessageManager.sendMessage(sender, "General.RateLimited", true);
             return;
         }
+        Command command = Command.getByName(cmd);
+        if (command == null) {
+            return;
+        }
+
+        String permission = command.getPermission();
+        if (permission != null && !Universal.get().hasPerms(sender, permission)) {
+            MessageManager.sendMessage(sender, "General.NoPerms", true);
+            return;
+        }
+
+        if (!command.validateArguments(args)) {
+            MessageManager.sendMessage(sender, command.getUsagePath(), true);
+            return;
+        }
+
         Universal.get().getMethods().runAsync(() -> {
-            Command command = Command.getByName(cmd);
-            if (command == null)
-                return;
-
-            String permission = command.getPermission();
-            if (permission != null && !Universal.get().hasPerms(sender, permission)) {
-                MessageManager.sendMessage(sender, "General.NoPerms", true);
-                return;
-            }
-
-            if (!command.validateArguments(args)) {
-                MessageManager.sendMessage(sender, command.getUsagePath(), true);
-                return;
-            }
-
             command.execute(sender, args);
         });
+    }
+
+    public void clearRateLimits() {
+        rateLimiter.clear();
     }
 
     private boolean isSafeCommand(String cmd, String[] args) {

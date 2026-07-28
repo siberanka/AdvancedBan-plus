@@ -12,8 +12,15 @@ import org.bukkit.event.player.AsyncPlayerChatEvent;
 public class ChatListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onChat(AsyncPlayerChatEvent event) {
-        if (Universal.get().getMethods().callChat(event.getPlayer())) {
-            event.setCancelled(true);
+        try {
+            if (Universal.get().getMethods().callChat(event.getPlayer())) {
+                event.setCancelled(true);
+            }
+        } catch (RuntimeException | LinkageError ex) {
+            Universal.get().debugThrowable(ex);
+            if (Universal.get().isLockdownOnError()) {
+                event.setCancelled(true);
+            }
         }
     }
 }

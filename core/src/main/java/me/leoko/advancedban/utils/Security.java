@@ -112,6 +112,13 @@ public final class Security {
         return value.substring(0, maxLength);
     }
 
+    public static long ticksToMillis(long ticks) {
+        if (ticks <= 0L) {
+            return 0L;
+        }
+        return ticks > Long.MAX_VALUE / 50L ? Long.MAX_VALUE : ticks * 50L;
+    }
+
     public static int getInt(String path, int def) {
         try {
             MethodInterface mi = Universal.get().getMethods();

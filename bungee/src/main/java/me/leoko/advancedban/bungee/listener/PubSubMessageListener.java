@@ -15,7 +15,9 @@ import net.md_5.bungee.event.EventHandler;
  */
 public class PubSubMessageListener implements Listener {
     
-    private static final MethodInterface mi = Universal.get().getMethods();
+    private static MethodInterface methods() {
+        return Universal.get().getMethods();
+    }
 
     @SuppressWarnings("deprecation")
 	@EventHandler
@@ -40,8 +42,8 @@ public class PubSubMessageListener implements Listener {
                     return;
                 }
                 for (ProxiedPlayer pp : ProxyServer.getInstance().getPlayers()) {
-                    if (mi.hasPerms(pp, msg[1])) {
-                        mi.sendMessage(pp, msg[2]);
+                    if (methods().hasPerms(pp, msg[1])) {
+                        methods().sendMessage(pp, msg[2]);
                     }
                 }
             } else if (message.startsWith("message ")) {

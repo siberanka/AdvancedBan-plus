@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
 
 public final class LiteBansCompatibility {
     private static final AdvancedBanLiteBansEvents EVENTS = new AdvancedBanLiteBansEvents();
@@ -302,14 +303,19 @@ public final class LiteBansCompatibility {
         private final CopyOnWriteArrayList<Listener> listeners = new CopyOnWriteArrayList<>();
 
         @Override
-        public void register(Listener listener) {
-            if (listener != null) {
+        public synchronized void register(Listener listener) {
+            int maxListeners = Math.max(1,
+                    Math.min(1024, Security.getInt("LiteBansCompatibility.MaxEventListeners", 128)));
+            if (listener != null && (listeners.contains(listener) || listeners.size() < maxListeners)) {
                 listeners.addIfAbsent(listener);
+            } else if (listener != null) {
+                Universal.get().logMessage("Console.LiteBansListenerLimit",
+                        "&cLiteBans compatibility listener limit reached; registration was rejected.");
             }
         }
 
         @Override
-        public void unregister(Listener listener) {
+        public synchronized void unregister(Listener listener) {
             listeners.remove(listener);
         }
 
@@ -318,15 +324,27 @@ public final class LiteBansCompatibility {
         }
 
         private void entryAdded(Entry entry) {
-            listeners.forEach(listener -> listener.entryAdded(entry));
+            dispatch(listener -> listener.entryAdded(entry));
         }
 
         private void entryRemoved(Entry entry) {
-            listeners.forEach(listener -> listener.entryRemoved(entry));
+            dispatch(listener -> listener.entryRemoved(entry));
         }
 
         private void broadcastSent(String message, String type) {
-            listeners.forEach(listener -> listener.broadcastSent(message, type));
+            dispatch(listener -> listener.broadcastSent(message, type));
+        }
+
+        private void dispatch(Consumer<Listener> callback) {
+            for (Listener listener : listeners) {
+                try {
+                    callback.accept(listener);
+                } catch (RuntimeException | LinkageError ex) {
+                    Universal.get().logMessage("Console.LiteBansListenerFailed",
+                            "&cA LiteBans compatibility listener failed and was isolated.");
+                    Universal.get().debugThrowable(ex);
+                }
+            }
         }
     }
 

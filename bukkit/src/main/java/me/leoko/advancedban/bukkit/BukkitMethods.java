@@ -19,6 +19,7 @@ import org.bukkit.ChatColor;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.RegisteredServiceProvider;
@@ -119,7 +120,8 @@ public class BukkitMethods implements MethodInterface {
 
     @Override
     public String[] getKeys(Object file, String path) {
-        return ((YamlConfiguration) file).getConfigurationSection(path).getKeys(false).toArray(new String[0]);
+        ConfigurationSection section = ((YamlConfiguration) file).getConfigurationSection(path);
+        return section == null ? new String[0] : section.getKeys(false).toArray(new String[0]);
     }
 
     @Override
@@ -182,8 +184,19 @@ public class BukkitMethods implements MethodInterface {
 
     @Override
     public void sendMessage(Object player, String msg) {
+        if (!(player instanceof CommandSender) || msg == null) {
+            return;
+        }
         if (FoliaSchedulerBridge.isFolia() && player instanceof Player) {
             FoliaSchedulerBridge.runEntity((Player) player, getPlugin(), () -> ((CommandSender) player).sendMessage(msg));
+            return;
+        }
+        if (player instanceof Player && !Bukkit.isPrimaryThread()) {
+            Bukkit.getScheduler().runTask(getPlugin(), guarded(() -> ((CommandSender) player).sendMessage(msg)));
+            return;
+        }
+        if (!(player instanceof Player) && !Bukkit.isPrimaryThread()) {
+            runSync(() -> ((CommandSender) player).sendMessage(msg));
             return;
         }
         ((CommandSender) player).sendMessage(msg);
@@ -191,7 +204,8 @@ public class BukkitMethods implements MethodInterface {
 
     @Override
     public boolean hasPerms(Object player, String perms) {
-        return ((CommandSender) player).hasPermission(perms);
+        return player instanceof CommandSender && perms != null
+                && ((CommandSender) player).hasPermission(perms);
     }
 
     @Override
@@ -220,6 +234,12 @@ public class BukkitMethods implements MethodInterface {
         if (target != null && target.isOnline()) {
             if (FoliaSchedulerBridge.isFolia()) {
                 FoliaSchedulerBridge.runEntity(target, getPlugin(), () -> target.kickPlayer(reason));
+            } else if (!Bukkit.isPrimaryThread()) {
+                Bukkit.getScheduler().runTask(getPlugin(), guarded(() -> {
+                    if (target.isOnline()) {
+                        target.kickPlayer(reason);
+                    }
+                }));
             } else {
                 target.kickPlayer(reason);
             }
@@ -237,7 +257,7 @@ public class BukkitMethods implements MethodInterface {
             FoliaSchedulerBridge.runAsyncRepeating(getPlugin(), rn, l1, l2);
             return;
         }
-        Bukkit.getScheduler().runTaskTimerAsynchronously(getPlugin(), rn, l1, l2);
+        Bukkit.getScheduler().runTaskTimerAsynchronously(getPlugin(), guarded(rn), Math.max(0L, l1), Math.max(1L, l2));
     }
 
     @Override
@@ -246,7 +266,7 @@ public class BukkitMethods implements MethodInterface {
             FoliaSchedulerBridge.runAsyncDelayed(getPlugin(), rn, l1);
             return;
         }
-        Bukkit.getScheduler().runTaskLaterAsynchronously(getPlugin(), rn, l1);
+        Bukkit.getScheduler().runTaskLaterAsynchronously(getPlugin(), guarded(rn), Math.max(0L, l1));
     }
 
     @Override
@@ -255,7 +275,7 @@ public class BukkitMethods implements MethodInterface {
             FoliaSchedulerBridge.runAsync(getPlugin(), rn);
             return;
         }
-        Bukkit.getScheduler().runTaskAsynchronously(getPlugin(), rn);
+        Bukkit.getScheduler().runTaskAsynchronously(getPlugin(), guarded(rn));
     }
 
     @Override
@@ -264,7 +284,11 @@ public class BukkitMethods implements MethodInterface {
             FoliaSchedulerBridge.runGlobal(getPlugin(), rn);
             return;
         }
-        Bukkit.getScheduler().runTask(getPlugin(), rn);
+        if (Bukkit.isPrimaryThread()) {
+            guarded(rn).run();
+        } else {
+            Bukkit.getScheduler().runTask(getPlugin(), guarded(rn));
+        }
     }
 
     @Override
@@ -282,12 +306,23 @@ public class BukkitMethods implements MethodInterface {
 
     @Override
     public String getName(String uuid) {
-        return Bukkit.getOfflinePlayer(UUID.fromString(uuid)).getName();
+        if (!Security.isValidUuid(uuid)) {
+            return null;
+        }
+        String normalized = Security.normalizeUuid(uuid);
+        UUID parsed = UUID.fromString(normalized.replaceFirst(
+                "([0-9a-f]{8})([0-9a-f]{4})([0-9a-f]{4})([0-9a-f]{4})([0-9a-f]{12})",
+                "$1-$2-$3-$4-$5"));
+        return Bukkit.getOfflinePlayer(parsed).getName();
     }
 
     @Override
     public String getIP(Object player) {
-        return ((Player) player).getAddress().getHostName();
+        if (!(player instanceof Player) || ((Player) player).getAddress() == null
+                || ((Player) player).getAddress().getAddress() == null) {
+            return null;
+        }
+        return ((Player) player).getAddress().getAddress().getHostAddress();
     }
 
     @Override
@@ -331,7 +366,9 @@ public class BukkitMethods implements MethodInterface {
     @Override
     public String parseJSON(InputStreamReader json, String key) {
         try {
-            return ((JSONObject) new JSONParser().parse(json)).get(key).toString();
+            Object parsed = new JSONParser().parse(json);
+            Object value = parsed instanceof JSONObject ? ((JSONObject) parsed).get(key) : null;
+            return value == null ? null : Security.limit(String.valueOf(value), 8192);
         } catch (ParseException | IOException e) {
             Universal.get().logMessage("Console.JsonParseFailed", "&cFailed to parse JSON response.");
             Universal.get().debugException(e instanceof Exception ? (Exception) e : new RuntimeException(e));
@@ -341,9 +378,14 @@ public class BukkitMethods implements MethodInterface {
 
     @Override
     public String parseJSON(String json, String key) {
+        if (json == null || key == null || json.length() > 65_536 || key.length() > 128) {
+            return null;
+        }
         try {
-            return ((JSONObject) new JSONParser().parse(json)).get(key).toString();
-        } catch (ParseException e) {
+            Object parsed = new JSONParser().parse(json);
+            Object value = parsed instanceof JSONObject ? ((JSONObject) parsed).get(key) : null;
+            return value == null ? null : Security.limit(String.valueOf(value), 8192);
+        } catch (ParseException | RuntimeException e) {
             return null;
         }
     }
@@ -420,10 +462,34 @@ public class BukkitMethods implements MethodInterface {
 
     @Override
     public void notify(String perm, List<String> notification) {
-        Bukkit.getOnlinePlayers()
-                .stream()
-                .filter(player -> hasPerms(player, perm))
-                .forEach(player -> notification.forEach(str -> sendMessage(player, str)));
+        if (notification == null) {
+            return;
+        }
+        List<String> messages = List.copyOf(notification);
+        runSync(() -> Bukkit.getOnlinePlayers().forEach(player -> {
+            Runnable delivery = () -> {
+                if (hasPerms(player, perm)) {
+                    messages.forEach(str -> player.sendMessage(str == null ? "" : str));
+                }
+            };
+            if (FoliaSchedulerBridge.isFolia()) {
+                FoliaSchedulerBridge.runEntity(player, getPlugin(), delivery);
+            } else {
+                delivery.run();
+            }
+        }));
+    }
+
+    private Runnable guarded(Runnable task) {
+        return () -> {
+            try {
+                if (task != null && Universal.get().isOperational()) {
+                    task.run();
+                }
+            } catch (RuntimeException | LinkageError ex) {
+                Universal.get().debugThrowable(ex);
+            }
+        };
     }
 
     @Override

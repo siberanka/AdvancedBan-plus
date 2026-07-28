@@ -9,8 +9,6 @@ import me.leoko.advancedban.manager.PunishmentManager;
 import me.leoko.advancedban.manager.TimeManager;
 import me.leoko.advancedban.utils.litebans.LiteBansCompatibility;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.Collections;
 import java.util.Date;
@@ -21,7 +19,14 @@ import java.util.List;
  */
 public class Punishment {
 
-    private static final MethodInterface mi = Universal.get().getMethods();
+    private static final Object[] PERSISTENCE_LOCKS = new Object[64];
+
+    static {
+        for (int i = 0; i < PERSISTENCE_LOCKS.length; i++) {
+            PERSISTENCE_LOCKS[i] = new Object();
+        }
+    }
+
     private final String name, uuid, operator, calculation;
     private final long start, end;
     private final PunishmentType type;
@@ -49,7 +54,8 @@ public class Punishment {
     }
 
     public String getReason() {
-        return (reason == null ? mi.getString(mi.getConfig(), "DefaultReason", "none") : reason).replace("'", "");
+        MethodInterface methods = methods();
+        return (reason == null ? methods.getString(methods.getConfig(), "DefaultReason", "none") : reason).replace("'", "");
     }
 
     public String getHexId() {
@@ -57,7 +63,8 @@ public class Punishment {
     }
 
     public String getDate(long date) {
-        SimpleDateFormat format = new SimpleDateFormat(mi.getString(mi.getConfig(), "DateFormat", "dd.MM.yyyy-HH:mm"));
+        MethodInterface methods = methods();
+        SimpleDateFormat format = new SimpleDateFormat(methods.getString(methods.getConfig(), "DateFormat", "dd.MM.yyyy-HH:mm"));
         return format.format(new Date(date));
     }
 
@@ -66,6 +73,12 @@ public class Punishment {
     }
 
     public void create(boolean silent) {
+        synchronized (persistenceLock()) {
+            createLocked(silent);
+        }
+    }
+
+    private void createLocked(boolean silent) {
         if (id != -1) {
             Universal.get().logMessage("Console.PunishmentOverwriteBlocked", "&cAdvancedBan blocked an attempt to overwrite an existing punishment.");
             Universal.get().debug("Failed at: " + toString());
@@ -78,71 +91,57 @@ public class Punishment {
             return;
         }
 
-        final int cWarnings = getType().getBasic() == PunishmentType.WARNING ? (PunishmentManager.get().getCurrentWarns(getUuid()) + 1) : 0;
-
-        if (DatabaseManager.get().isLiteBansFormat()) {
-            id = DatabaseManager.get().insertPunishment(this, silent);
-            if (id == -1) {
-                Universal.get().logMessage("Console.PunishmentIdUpdateFailed", "&cCould not update punishment ID. Please restart the server to resolve this issue.");
-                Universal.get().debug("Failed at: " + toString());
-            }
-        } else {
-            DatabaseManager.get().executeStatement(SQLQuery.INSERT_PUNISHMENT_HISTORY, getName(), getUuid(), getReason(), getOperator(), getType().name(), getStart(), getEnd(), getCalculation());
-
-            if (getType() != PunishmentType.KICK) {
-                try {
-                    DatabaseManager.get().executeStatement(SQLQuery.INSERT_PUNISHMENT, getName(), getUuid(), getReason(), getOperator(), getType().name(), getStart(), getEnd(), getCalculation());
-                    try (ResultSet rs = DatabaseManager.get().executeResultStatement(SQLQuery.SELECT_EXACT_PUNISHMENT, getUuid(), getStart(), getType().name())) {
-                        if (rs.next()) {
-                            id = rs.getInt("id");
-                        } else {
-                            Universal.get().logMessage("Console.PunishmentIdUpdateFailed", "&cCould not update punishment ID. Please restart the server to resolve this issue.");
-                            Universal.get().debug("Failed at: " + toString());
-                        }
-                    }
-                } catch (SQLException ex) {
-                    Universal.get().debugSqlException(ex);
-                }
-            } else {
-                try (ResultSet rs = DatabaseManager.get().executeResultStatement(SQLQuery.SELECT_EXACT_PUNISHMENT_HISTORY, getUuid(), getStart(), getType().name())) {
-                    if (rs != null && rs.next()) {
-                        id = rs.getInt("id");
-                    }
-                } catch (SQLException ex) {
-                    Universal.get().debugSqlException(ex);
-                }
-            }
+        PunishmentType basicType = getType().getBasic();
+        if ((basicType == PunishmentType.BAN && PunishmentManager.get().getBan(uuid) != null)
+                || (basicType == PunishmentType.MUTE && PunishmentManager.get().getMute(uuid) != null)) {
+            Universal.get().logMessage("Console.PunishmentDuplicateBlocked",
+                    "&cAdvancedBan blocked a concurrent duplicate %TYPE% for %NAME%.",
+                    "TYPE", basicType.getName(), "NAME", getName());
+            return;
         }
 
+        final int cWarnings = getType().getBasic() == PunishmentType.WARNING ? (PunishmentManager.get().getCurrentWarns(getUuid()) + 1) : 0;
+
+        id = DatabaseManager.get().storePunishment(this, silent);
+        if (id < 0) {
+            Universal.get().logMessage("Console.PunishmentTransactionFailed",
+                    "&cPunishment was not created because its database transaction failed.");
+            Universal.get().debug("Failed at: " + toString());
+            return;
+        }
+
+        MethodInterface methods = methods();
         if (!silent) {
             announce(cWarnings);
         }
 
-        if (mi.isOnline(getName())) {
-            final Object p = mi.getPlayer(getName());
-
-            if (getType().getBasic() == PunishmentType.BAN || getType() == PunishmentType.KICK) {
-                mi.runSync(() -> mi.kickPlayer(getName(), getLayoutBSN()));
-            } else {
-                if (getType().getBasic() != PunishmentType.NOTE)
-                    for (String str : getLayout()) {
-                        mi.sendMessage(p, str);
+        methods.runSync(() -> {
+            if (methods.isOnline(getName())) {
+                final Object player = methods.getPlayer(getName());
+                if (getType().getBasic() == PunishmentType.BAN || getType() == PunishmentType.KICK) {
+                    methods.kickPlayer(getName(), getLayoutBSN());
+                } else {
+                    if (getType().getBasic() != PunishmentType.NOTE) {
+                        for (String str : getLayout()) {
+                            methods.sendMessage(player, str);
+                        }
                     }
-                PunishmentManager.get().getLoadedPunishments(false).add(this);
+                    PunishmentManager.get().getLoadedPunishments(false).add(this);
+                }
             }
-        }
+        });
 
         PunishmentManager.get().getLoadedHistory().add(this);
 
-        mi.callPunishmentEvent(this);
+        methods.callPunishmentEvent(this);
         LiteBansCompatibility.entryAdded(this);
         DiscordWebhookManager.get().punishmentCreated(this, silent);
 
         if (getType().getBasic() == PunishmentType.WARNING) {
             String cmd = null;
             for (int i = 1; i <= cWarnings; i++) {
-                if (mi.contains(mi.getConfig(), "WarnActions." + i)) {
-                    cmd = mi.getString(mi.getConfig(), "WarnActions." + i);
+                if (methods.contains(methods.getConfig(), "WarnActions." + i)) {
+                    cmd = methods.getString(methods.getConfig(), "WarnActions." + i);
                 }
             }
             if (cmd != null) {
@@ -150,8 +149,8 @@ public class Punishment {
                         .replace("%PLAYER%", Security.sanitizeCommandPlaceholder(getName()))
                         .replace("%COUNT%", cWarnings + "")
                         .replace("%REASON%", Security.sanitizeCommandPlaceholder(getReason()));
-                mi.runSync(() -> {
-                    mi.executeCommand(finalCmd);
+                methods.runSync(() -> {
+                    methods.executeCommand(finalCmd);
                     Universal.get().logMessage("Console.WarnActionExecuted", "Executing command: %COMMAND%", "COMMAND", finalCmd);
                 });
             }
@@ -167,10 +166,11 @@ public class Punishment {
     }
 
     private void announce(int cWarnings) {
-        List<String> notification = MessageManager.getLayout(mi.getMessages(),
+        MethodInterface methods = methods();
+        List<String> notification = MessageManager.getLayout(methods.getMessages(),
                 getType().getName() + ".Notification",
                 "OPERATOR", getOperator(),
-                "PREFIX", mi.getBoolean(mi.getConfig(), "Disable Prefix", false) ? "" : MessageManager.getMessage("General.Prefix"),
+                "PREFIX", methods.getBoolean(methods.getConfig(), "Disable Prefix", false) ? "" : MessageManager.getMessage("General.Prefix"),
                 "DURATION", getDuration(true),
                 "REASON", getReason(),
                 "NAME", getName(),
@@ -179,7 +179,7 @@ public class Punishment {
                 "DATE", getDate(start),
                 "COUNT", cWarnings + "");
 
-        mi.notify("ab.notify." + getType().getName(), notification);
+        methods.notify("ab.notify." + getType().getName(), notification);
         notification.forEach(message -> LiteBansCompatibility.broadcastSent(message, getType().getName()));
     }
 
@@ -208,31 +208,45 @@ public class Punishment {
         if (who != null) {
             String message = MessageManager.getMessage("Un" + getType().getBasic().getConfSection("Notification"),
                     true, "OPERATOR", who, "NAME", getName());
-            mi.notify("ab.undoNotify." + getType().getBasic().getName(), Collections.singletonList(message));
+            methods().notify("ab.undoNotify." + getType().getBasic().getName(), Collections.singletonList(message));
 
             Universal.get().debug(who + " is deleting a punishment");
         }
 
         Universal.get().debug("Deleted punishment " + getId() + " from " + getName() + " punishment reason: " + getReason());
-        mi.callRevokePunishmentEvent(this, massClear);
+        methods().callRevokePunishmentEvent(this, massClear);
         LiteBansCompatibility.entryRemoved(this);
         DiscordWebhookManager.get().punishmentRevoked(this, who, massClear);
     }
 
     public List<String> getLayout() {
         boolean isLayout = getReason().startsWith("@") || getReason().startsWith("~");
+        MethodInterface methods = methods();
 
         return MessageManager.getLayout(
-                isLayout ? mi.getLayouts() : mi.getMessages(),
+                isLayout ? methods.getLayouts() : methods.getMessages(),
                 isLayout ? "Message." + getReason().split(" ")[0].substring(1) : getType().getName() + ".Layout",
                 "OPERATOR", getOperator(),
-                "PREFIX", mi.getBoolean(mi.getConfig(), "Disable Prefix", false) ? "" : MessageManager.getMessage("General.Prefix"),
+                "PREFIX", methods.getBoolean(methods.getConfig(), "Disable Prefix", false) ? "" : MessageManager.getMessage("General.Prefix"),
                 "DURATION", getDuration(false),
                 "REASON", isLayout ? (getReason().split(" ").length < 2 ? "" : getReason().substring(getReason().split(" ")[0].length() + 1)) : getReason(),
                 "HEXID", getHexId(),
                 "ID", String.valueOf(id),
                 "DATE", getDate(start),
                 "COUNT", getType().getBasic() == PunishmentType.WARNING ? (PunishmentManager.get().getCurrentWarns(getUuid()) + 1) + "" : "0");
+    }
+
+    private Object persistenceLock() {
+        int hash = 31 * String.valueOf(uuid).hashCode() + getType().getBasic().hashCode();
+        return PERSISTENCE_LOCKS[(hash & Integer.MAX_VALUE) % PERSISTENCE_LOCKS.length];
+    }
+
+    private static MethodInterface methods() {
+        MethodInterface methods = Universal.get().getMethods();
+        if (methods == null) {
+            throw new IllegalStateException("AdvancedBan platform methods are unavailable.");
+        }
+        return methods;
     }
 
     public String getDuration(boolean fromStart) {

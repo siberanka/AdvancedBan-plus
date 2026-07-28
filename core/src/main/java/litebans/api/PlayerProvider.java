@@ -3,7 +3,7 @@ package litebans.api;
 import litebans.api.exception.MissingImplementationException;
 
 public abstract class PlayerProvider {
-    private static PlayerProvider instance;
+    private static volatile PlayerProvider instance;
 
     public static void setInstance(PlayerProvider instance) {
         PlayerProvider.instance = instance;

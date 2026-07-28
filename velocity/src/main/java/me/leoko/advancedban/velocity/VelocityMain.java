@@ -9,13 +9,14 @@ import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
 import me.leoko.advancedban.Universal;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
 
 @Plugin(
         id = "advancedban",
         name = "AdvancedBan",
-        version = "2026.06.29.9",
+        version = "2026.07.28.1",
         description = "Modernized AdvancedBan with Bukkit, Folia, BungeeCord and Velocity support",
         authors = {"Leoko", "siberanka"}
 )
@@ -27,9 +28,9 @@ public class VelocityMain {
     private final Path dataDirectory;
 
     @Inject
-    public VelocityMain(ProxyServer proxy, Logger logger, @DataDirectory Path dataDirectory) {
+    public VelocityMain(ProxyServer proxy, @DataDirectory Path dataDirectory) {
         this.proxy = proxy;
-        this.logger = logger;
+        this.logger = LoggerFactory.getLogger("AdvancedBan");
         this.dataDirectory = dataDirectory;
         instance = this;
     }
@@ -58,6 +59,8 @@ public class VelocityMain {
 
     @Subscribe
     public void onProxyShutdown(ProxyShutdownEvent event) {
+        proxy.getScheduler().tasksByPlugin(this).forEach(task -> task.cancel());
         Universal.get().shutdown();
+        instance = null;
     }
 }

@@ -1,5 +1,8 @@
 package me.leoko.advancedban;
 
+import litebans.api.Database;
+import litebans.api.Entry;
+import litebans.api.Events;
 import me.leoko.advancedban.manager.DatabaseManager;
 import me.leoko.advancedban.manager.PunishmentManager;
 import me.leoko.advancedban.manager.TimeManager;
@@ -11,6 +14,8 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.File;
 import java.sql.ResultSet;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -68,6 +73,54 @@ public class LiteBansStorageTest {
             assertEquals(ban.getId(), warn.getId(), "Independent LiteBans tables can share numeric ids");
             assertEquals(PunishmentType.WARNING, PunishmentManager.get().getWarn(warn.getId()).getType());
         } finally {
+            Universal.get().shutdown();
+        }
+    }
+
+    @Test
+    public void shouldExposeApiStateAndIsolateFailingEventListeners() {
+        Universal.get().setup(new TestMethods(dataFolder, Map.of("litebans-api-support", true)));
+        Events.Listener failing = new Events.Listener() {
+            @Override
+            public void entryAdded(Entry entry) {
+                throw new IllegalStateException("intentional listener failure");
+            }
+        };
+        AtomicInteger added = new AtomicInteger();
+        AtomicInteger removed = new AtomicInteger();
+        Events.Listener healthy = new Events.Listener() {
+            @Override
+            public void entryAdded(Entry entry) {
+                added.incrementAndGet();
+            }
+
+            @Override
+            public void entryRemoved(Entry entry) {
+                removed.incrementAndGet();
+            }
+        };
+
+        try {
+            Events.get().register(failing);
+            Events.get().register(healthy);
+            UUID uuid = UUID.randomUUID();
+            Punishment ban = new Punishment("liteapi", uuid.toString().replace("-", ""), "API event test",
+                    "JUnit5", PunishmentType.BAN, TimeManager.getTime(), -1, null, -1);
+
+            ban.create();
+
+            assertTrue(Database.get().isPlayerBanned(uuid, null));
+            assertEquals(1, added.get(), "A failing listener must not block later listeners");
+
+            ban.delete("JUnit5", false, true);
+            assertEquals(1, removed.get());
+        } finally {
+            try {
+                Events.get().unregister(failing);
+                Events.get().unregister(healthy);
+            } catch (RuntimeException ignored) {
+                // Universal shutdown below resets all compatibility API singletons.
+            }
             Universal.get().shutdown();
         }
     }

@@ -15,13 +15,7 @@ General:
 Connection:
   FailedUUID: "[AdvancedBan] Failed to fetch your UUID"
   FailedDataLoad: "[AdvancedBan] Failed to load player data!"
-
-Broadcast:
-  CreatorJoin:
-  - ""
-  - "&c&lAdvancedBan &8&l» &7My creator &c&oLeoko &7just joined the game ^^"
-  - ""
-  CreatorPrivate: "&c&lAdvancedBan Plus &8&l» &cHey Leoko, this server is using your plugin."
+  InvalidIdentity: "[AdvancedBan] Invalid connection identity."
 
 Console:
   EnableSimple: "&cEnabling AdvancedBan on Version &7%VERSION%"
@@ -73,6 +67,7 @@ Console:
   DiscordWebhookFailed: "&cDiscord webhook failed with HTTP %CODE%."
   DiscordWebhookPayloadTooLarge: "&cDiscord webhook payload for %EVENT% is too large; webhook skipped."
   YamlReplacedInvalid: "&cReplaced unreadable %FILE% with the bundled default. A backup was created."
+  YamlReplacedOversized: "&cReplaced oversized %FILE% with the bundled default. A backup was created."
   YamlMaintained: "&7Maintained %FILE%: added %ADDED% missing entries, removed %REMOVED% unknown entries."
   UUIDFetchFailed: "&cFailed fetching UUID of %NAME% from %URL%."
   UUIDTryingBackup: "Trying to fetch UUID from backup API."
@@ -89,12 +84,16 @@ Console:
   PunishmentHistoryGetByIdFailed: "&cAn error has occurred getting a history punishment by id."
   PunishmentCalculationLevelFailed: "&cAn error has occurred getting the level for layout %LAYOUT% and uuid %UUID%."
   PunishmentOverwriteBlocked: "&cAdvancedBan blocked an attempt to overwrite an existing punishment."
+  PunishmentDuplicateBlocked: "&cAdvancedBan blocked a concurrent duplicate %TYPE% for %NAME%."
+  PunishmentTransactionFailed: "&cPunishment was not created because its database transaction failed."
   PunishmentMissingUuid: "&cAdvancedBan did not save %TYPE% because there is no fetched UUID."
   PunishmentIdUpdateFailed: "&cCould not update punishment ID. Please restart the server to resolve this issue."
   WarnActionExecuted: "Executing command: %COMMAND%"
   PunishmentDeleteKickBlocked: "&cFailed deleting: kicks cannot be deleted."
   PunishmentDeleteNotCreated: "&cFailed deleting: the punishment is not created yet."
   LiteBansCompatibilityEnabled: "LiteBans API compatibility enabled."
+  LiteBansListenerLimit: "&cLiteBans compatibility listener limit reached; registration was rejected."
+  LiteBansListenerFailed: "&cA LiteBans compatibility listener failed and was isolated."
   LiteBansDatabaseFormatEnabled: "LiteBans database format enabled. Existing AdvancedBan tables are left untouched."
   LiteBansStorageUnsupportedType: "&cLiteBans database format cannot store punishment type %TYPE%."
   CommandRegistrationFailed: "&cFailed to register command %COMMAND%."

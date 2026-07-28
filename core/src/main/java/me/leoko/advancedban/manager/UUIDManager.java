@@ -117,9 +117,19 @@ public class UUIDManager {
      * @param uuid the uuid
      */
     public void supplyInternUUID(String name, UUID uuid) {
-        if (mode == FetcherMode.INTERN || mode == FetcherMode.MIXED) {
-            activeUUIDs.put(name.toLowerCase(), uuid.toString().replace("-", ""));
+        if ((mode == FetcherMode.INTERN || mode == FetcherMode.MIXED) && Security.isValidPlayerName(name) && uuid != null) {
+            activeUUIDs.put(name.toLowerCase(Locale.ROOT), uuid.toString().replace("-", ""));
         }
+    }
+
+    public void discard(String name) {
+        if (name != null) {
+            activeUUIDs.remove(name.toLowerCase(Locale.ROOT));
+        }
+    }
+
+    public void clear() {
+        activeUUIDs.clear();
     }
 
     /**

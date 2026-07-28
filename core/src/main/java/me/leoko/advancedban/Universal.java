@@ -25,7 +25,9 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Scanner;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -42,9 +44,11 @@ public class Universal {
     }
 
     private final Map<String, String> ips = new ConcurrentHashMap<>();
+    private final Object lifecycleLock = new Object();
     private MethodInterface mi;
     private LogManager logManager;
     private volatile GitHubUpdateChecker.Result lastUpdateCheck;
+    private volatile LifecycleState lifecycleState = LifecycleState.NEW;
 
     private static boolean redis = false;
 
@@ -70,42 +74,60 @@ public class Universal {
      * @param mi the mi
      */
     public void setup(MethodInterface mi) {
-        this.mi = mi;
-        mi.loadFiles();
-        logManager = new LogManager();
-        UpdateManager.get().setup();
-        UUIDManager.get().setup();
-
-        try {
-            DatabaseManager.get().setup(mi.getBoolean(mi.getConfig(), "UseMySQL", false));
-        } catch (Exception ex) {
-            logMessage("Console.DatabaseManagerEnableFailed", "Failed enabling database-manager...");
-            debugException(ex);
-        }
-
-        mi.setupMetrics();
-        PunishmentManager.get().setup();
-        LiteBansCompatibility.setup();
-
-        for (Command command : Command.values()) {
-            for (String commandName : command.getNames()) {
-                mi.setCommandExecutor(commandName, command.getPermission(), command.getTabCompleter());
+        synchronized (lifecycleLock) {
+            if (lifecycleState == LifecycleState.STARTING || lifecycleState == LifecycleState.ACTIVE) {
+                throw new IllegalStateException("AdvancedBan is already starting or active.");
             }
-        }
+            lifecycleState = LifecycleState.STARTING;
+            this.mi = Objects.requireNonNull(mi, "Platform methods");
+            ips.clear();
+            lastUpdateCheck = null;
+            redis = false;
 
-        String upt = mi.getBoolean(mi.getConfig(), "UpdateChecker.Enabled", true)
-                ? "GitHub release check scheduled"
-                : "GitHub release check disabled";
+            try {
+                mi.loadFiles();
+                validateLoadedFiles(mi);
+                logManager = new LogManager();
+                UpdateManager.get().setup();
+                validateLoadedFiles(mi);
+                UUIDManager.get().clear();
+                UUIDManager.get().setup();
 
-        if (mi.getBoolean(mi.getConfig(), "DetailedEnableMessage", true)) {
-            logLayout("Console.EnableDetailed", getConsoleParameters(upt));
-        } else {
-            logMessage("Console.EnableSimple", "&cEnabling AdvancedBan on Version &7%VERSION%",
-                    "VERSION", mi.getVersion());
-        }
+            DatabaseManager.get().setup(mi.getBoolean(mi.getConfig(), "UseMySQL", false));
+                if (!DatabaseManager.get().isConnectionValid()) {
+                    throw new IllegalStateException("Database pool failed its startup validation.");
+                }
 
-        if (!mi.isUnitTesting()) {
-            requestUpdateCheck(null);
+                mi.setupMetrics();
+                PunishmentManager.get().setup();
+                LiteBansCompatibility.setup();
+
+                for (Command command : Command.values()) {
+                    for (String commandName : command.getNames()) {
+                        mi.setCommandExecutor(commandName, command.getPermission(), command.getTabCompleter());
+                    }
+                }
+
+                String upt = mi.getBoolean(mi.getConfig(), "UpdateChecker.Enabled", true)
+                        ? "GitHub release check scheduled"
+                        : "GitHub release check disabled";
+
+                if (mi.getBoolean(mi.getConfig(), "DetailedEnableMessage", true)) {
+                    logLayout("Console.EnableDetailed", getConsoleParameters(upt));
+                } else {
+                    logMessage("Console.EnableSimple", "&cEnabling AdvancedBan on Version &7%VERSION%",
+                            "VERSION", mi.getVersion());
+                }
+
+                lifecycleState = LifecycleState.ACTIVE;
+                if (!mi.isUnitTesting()) {
+                    requestUpdateCheck(null);
+                }
+            } catch (RuntimeException | LinkageError ex) {
+                lifecycleState = LifecycleState.FAILED;
+                safeSetupRollback(ex);
+                throw ex;
+            }
         }
     }
 
@@ -113,15 +135,80 @@ public class Universal {
      * Shutdown.
      */
     public void shutdown() {
-        LiteBansCompatibility.shutdown();
-        DiscordWebhookManager.get().clear();
-        DatabaseManager.get().shutdown();
+        synchronized (lifecycleLock) {
+            if (lifecycleState == LifecycleState.NEW || lifecycleState == LifecycleState.STOPPED
+                    || lifecycleState == LifecycleState.STOPPING) {
+                return;
+            }
+            lifecycleState = LifecycleState.STOPPING;
 
-        if (mi.getBoolean(mi.getConfig(), "DetailedDisableMessage", true)) {
-            logLayout("Console.DisableDetailed", getConsoleParameters(""));
-        } else {
-            logMessage("Console.DisableSimple", "&cDisabling AdvancedBan on Version &7%VERSION%",
-                    "VERSION", getMethods().getVersion());
+            if (mi != null && mi.getConfig() != null) {
+                if (mi.getBoolean(mi.getConfig(), "DetailedDisableMessage", true)) {
+                    logLayout("Console.DisableDetailed", getConsoleParameters(""));
+                } else {
+                    logMessage("Console.DisableSimple", "&cDisabling AdvancedBan on Version &7%VERSION%",
+                            "VERSION", mi.getVersion());
+                }
+            }
+
+            runShutdownStep(LiteBansCompatibility::shutdown);
+            runShutdownStep(() -> DiscordWebhookManager.get().clear());
+            runShutdownStep(() -> CommandManager.get().clearRateLimits());
+            runShutdownStep(() -> PunishmentManager.get().clear());
+            runShutdownStep(() -> UUIDManager.get().clear());
+            runShutdownStep(() -> DatabaseManager.get().shutdown());
+            ips.clear();
+            lastUpdateCheck = null;
+            redis = false;
+            logManager = null;
+            mi = null;
+            lifecycleState = LifecycleState.STOPPED;
+        }
+    }
+
+    public boolean isOperational() {
+        return lifecycleState == LifecycleState.ACTIVE;
+    }
+
+    public boolean isLockdownOnError() {
+        MethodInterface methods = mi;
+        return methods == null || methods.getConfig() == null
+                || methods.getBoolean(methods.getConfig(), "LockdownOnError", true);
+    }
+
+    private void validateLoadedFiles(MethodInterface methods) {
+        if (!methods.isUnitTesting()
+                && (methods.getConfig() == null || methods.getMessages() == null || methods.getLayouts() == null)) {
+            throw new IllegalStateException("Required YAML files could not be loaded.");
+        }
+    }
+
+    private void safeSetupRollback(Throwable failure) {
+        try {
+            debugThrowable(failure);
+        } catch (RuntimeException ignored) {
+            // The platform logger may be unavailable when startup fails before YAML loading.
+        }
+        runShutdownStep(LiteBansCompatibility::shutdown);
+        runShutdownStep(() -> DiscordWebhookManager.get().clear());
+        runShutdownStep(() -> CommandManager.get().clearRateLimits());
+        runShutdownStep(() -> PunishmentManager.get().clear());
+        runShutdownStep(() -> UUIDManager.get().clear());
+        runShutdownStep(() -> DatabaseManager.get().shutdown());
+        ips.clear();
+    }
+
+    private void runShutdownStep(Runnable step) {
+        try {
+            step.run();
+        } catch (RuntimeException | LinkageError ex) {
+            if (mi != null) {
+                try {
+                    debugThrowable(ex);
+                } catch (RuntimeException ignored) {
+                    // Shutdown remains best-effort and idempotent.
+                }
+            }
         }
     }
 
@@ -160,6 +247,9 @@ public class Universal {
     }
 
     public void requestUpdateCheck(Object requester) {
+        if (!isOperational()) {
+            return;
+        }
         if (!mi.getBoolean(mi.getConfig(), "UpdateChecker.Enabled", true)) {
             if (requester != null) {
                 sendUpdateMessage(requester, "Update.Disabled", "&cGitHub update checks are disabled in config.");
@@ -407,7 +497,15 @@ public class Universal {
      * @return the string
      */
     public String callConnection(String name, String ip) {
-        name = name.toLowerCase();
+        if (!isOperational() || !Security.isValidPlayerName(name)) {
+            return MessageManager.getMessageOrDefault("Connection.InvalidIdentity",
+                    "[AdvancedBan] Invalid connection identity");
+        }
+        if (ip != null && ip.length() > 64) {
+            return MessageManager.getMessageOrDefault("Connection.InvalidIdentity",
+                    "[AdvancedBan] Invalid connection identity");
+        }
+        name = name.toLowerCase(Locale.ROOT);
         String uuid = UUIDManager.get().getUUID(name);
         if (uuid == null) {
             return MessageManager.getMessageOrDefault("Connection.FailedUUID", "[AdvancedBan] Failed to fetch your UUID");
@@ -616,5 +714,14 @@ public class Universal {
         }
         Files.move(errorFile.toPath(), new File(errorFile.getParentFile(), "error.log.1").toPath(),
                 StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    private enum LifecycleState {
+        NEW,
+        STARTING,
+        ACTIVE,
+        STOPPING,
+        STOPPED,
+        FAILED
     }
 }

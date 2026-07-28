@@ -10,6 +10,7 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * The Punishment Manager handles the punishments. It loads and parses them from the database, caches them
@@ -18,9 +19,9 @@ import java.util.*;
 public class PunishmentManager {
 
     private static PunishmentManager instance = null;
-    private final Set<Punishment> punishments = Collections.synchronizedSet(new HashSet<>());
-    private final Set<Punishment> history = Collections.synchronizedSet(new HashSet<>());
-    private final Set<String> cached = Collections.synchronizedSet(new HashSet<>());
+    private final Set<Punishment> punishments = ConcurrentHashMap.newKeySet();
+    private final Set<Punishment> history = ConcurrentHashMap.newKeySet();
+    private final Set<String> cached = ConcurrentHashMap.newKeySet();
     
     private Universal universal() {
     	return Universal.get();
@@ -39,6 +40,7 @@ public class PunishmentManager {
      * Initially clears out all expired punishments.
      */
     public void setup() {
+        clear();
         DatabaseManager.get().executeStatement(SQLQuery.DELETE_OLD_PUNISHMENTS, TimeManager.getTime());
         // Seems useless as the Interim Data which get's loaded just is ignored
 //        for (Object player : mi.getOnlinePlayers()) {
@@ -87,9 +89,12 @@ public class PunishmentManager {
      * @param name the name
      */
     public void discard(String name) {
-        name = name.toLowerCase();
-        String ip = Universal.get().getIps().get(name);
-        String uuid = UUIDManager.get().getUUID(name);
+        if (name == null) {
+            return;
+        }
+        name = name.toLowerCase(Locale.ROOT);
+        String ip = Universal.get().getIps().remove(name);
+        String uuid = UUIDManager.get().getInMemoryUUID(name);
         cached.remove(name);
         if (uuid != null) cached.remove(uuid);
         if (ip != null) cached.remove(ip);
@@ -97,7 +102,7 @@ public class PunishmentManager {
         Iterator<Punishment> iterator = punishments.iterator();
         while (iterator.hasNext()) {
             Punishment punishment = iterator.next();
-            if (punishment.getUuid().equals(uuid) || punishment.getUuid().equals(ip)) {
+            if (Objects.equals(punishment.getUuid(), uuid) || Objects.equals(punishment.getUuid(), ip)) {
                 iterator.remove();
             }
         }
@@ -105,10 +110,17 @@ public class PunishmentManager {
         iterator = history.iterator();
         while (iterator.hasNext()) {
             Punishment punishment = iterator.next();
-            if (punishment.getUuid().equals(uuid) || punishment.getUuid().equals(ip)) {
+            if (Objects.equals(punishment.getUuid(), uuid) || Objects.equals(punishment.getUuid(), ip)) {
                 iterator.remove();
             }
         }
+        UUIDManager.get().discard(name);
+    }
+
+    public void clear() {
+        punishments.clear();
+        history.clear();
+        cached.clear();
     }
 
     /**
@@ -122,6 +134,9 @@ public class PunishmentManager {
      */
     public List<Punishment> getPunishments(String target, PunishmentType put, boolean current) {
         List<Punishment> ptList = new ArrayList<>();
+        if (target == null || target.isEmpty()) {
+            return ptList;
+        }
 
         if (isCached(target)) {
             for (Iterator<Punishment> iterator = (current ? punishments : history).iterator(); iterator.hasNext(); ) {
@@ -364,9 +379,12 @@ public class PunishmentManager {
      * @param data the data
      */
     public void setCached(InterimData data) {
-        cached.add(data.getName());
-        cached.add(data.getIp());
-        cached.add(data.getUuid());
+        if (data == null) {
+            return;
+        }
+        if (data.getName() != null) cached.add(data.getName());
+        if (data.getIp() != null) cached.add(data.getIp());
+        if (data.getUuid() != null) cached.add(data.getUuid());
     }
 
     /**

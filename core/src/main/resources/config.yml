@@ -163,6 +163,10 @@ YamlMaintenance:
   Enabled: true
   # Always backup a YAML file before AdvancedBan changes it.
   BackupBeforeChanges: true
+  # Refuse to parse larger YAML files and restore the bundled default after backup.
+  MaxFileBytes: 2097152
+  # Maximum rotated backups retained for each maintained YAML file.
+  MaxBackupsPerFile: 10
   # Dangerous if you keep custom sections. When true, entries not present in the
   # bundled defaults are removed after a backup. Leave false unless you want cleanup.
   RemoveUnknownEntries: false
@@ -301,6 +305,11 @@ DiscordWebhook:
 # Exposes a small compatibility layer for plugins compiled against the LiteBans API.
 # Disabled by default to avoid surprising class/API behavior on networks that also run LiteBans.
 litebans-api-support: false
+
+# Safety limits for the optional LiteBans API compatibility event bridge.
+LiteBansCompatibility:
+  # Maximum third-party listeners retained by the compatibility event bus.
+  MaxEventListeners: 128
 
 # Defensive limits for malicious clients, automation, very large payloads and slow external APIs.
 Security:

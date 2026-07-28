@@ -10,7 +10,7 @@ import java.util.UUID;
 public abstract class Database {
     public static final String ANY_SERVER_SCOPE = "__ALL__";
 
-    private static Database instance;
+    private static volatile Database instance;
 
     public static void setInstance(Database instance) {
         Database.instance = instance;

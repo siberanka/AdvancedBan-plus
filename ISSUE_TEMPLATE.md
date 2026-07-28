@@ -5,7 +5,8 @@ Please use the GitHub issue forms under `.github/ISSUE_TEMPLATE` when possible.
 ## Required information
 
 - AdvancedBan Plus version:
-- Module/platform: Bukkit/Paper, BungeeCord, Velocity, Bundle, LiteBans API, Simple Voice Chat
+- Installed JAR: `AdvancedBan-Bundle-<version>-RELEASE.jar`
+- Host platform: Bukkit/Paper, Folia, BungeeCord, Velocity, LiteBans API, Simple Voice Chat
 - Server/proxy version (`/version`):
 - Java version (`java -version`):
 - Storage backend: HSQLDB or MySQL/MariaDB

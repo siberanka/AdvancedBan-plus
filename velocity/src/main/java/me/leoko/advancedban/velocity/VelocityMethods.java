@@ -104,7 +104,7 @@ public class VelocityMethods implements MethodInterface {
 
     @Override
     public String getVersion() {
-        return "2026.06.29.9";
+        return "2026.07.28.1";
     }
 
     @Override
@@ -209,22 +209,27 @@ public class VelocityMethods implements MethodInterface {
 
     @Override
     public void scheduleAsyncRep(Runnable rn, long l1, long l2) {
-        plugin.getProxy().getScheduler().buildTask(plugin, rn).delay(l1 * 50, TimeUnit.MILLISECONDS).repeat(l2 * 50, TimeUnit.MILLISECONDS).schedule();
+        plugin.getProxy().getScheduler().buildTask(plugin, guarded(rn))
+                .delay(Security.ticksToMillis(l1), TimeUnit.MILLISECONDS)
+                .repeat(Math.max(50L, Security.ticksToMillis(l2)), TimeUnit.MILLISECONDS)
+                .schedule();
     }
 
     @Override
     public void scheduleAsync(Runnable rn, long l1) {
-        plugin.getProxy().getScheduler().buildTask(plugin, rn).delay(l1 * 50, TimeUnit.MILLISECONDS).schedule();
+        plugin.getProxy().getScheduler().buildTask(plugin, guarded(rn))
+                .delay(Security.ticksToMillis(l1), TimeUnit.MILLISECONDS)
+                .schedule();
     }
 
     @Override
     public void runAsync(Runnable rn) {
-        plugin.getProxy().getScheduler().buildTask(plugin, rn).schedule();
+        plugin.getProxy().getScheduler().buildTask(plugin, guarded(rn)).schedule();
     }
 
     @Override
     public void runSync(Runnable rn) {
-        rn.run();
+        guarded(rn).run();
     }
 
     @Override
@@ -349,4 +354,16 @@ public class VelocityMethods implements MethodInterface {
 
     @Override
     public boolean isUnitTesting() { return false; }
+
+    private Runnable guarded(Runnable task) {
+        return () -> {
+            try {
+                if (task != null && Universal.get().isOperational()) {
+                    task.run();
+                }
+            } catch (RuntimeException | LinkageError ex) {
+                Universal.get().debugThrowable(ex);
+            }
+        };
+    }
 }
