@@ -46,7 +46,7 @@ jobs:
           fi
 
       - name: Upload Bundle JAR
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: AdvancedBan-Bundle
           path: bundle/target/AdvancedBan-Bundle-*-RELEASE.jar
